@@ -8,18 +8,25 @@ dotenv.config();
 
 const app = express();
 
-// CORS: front-end exact + cookies
+// ✅ CORS PROPRE (local + Render)
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://academie-frontend.onrender.com"
+];
+
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: function (origin, callback) {
+    // Autorise Postman / curl
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true
 }));
-
-// 🔥 Fix ultra-minimal pour permettre les cookies JWT (NE CASSE RIEN)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Origin", "http://localhost:5173");
-  next();
-});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
