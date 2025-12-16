@@ -9,7 +9,7 @@ dotenv.config();
 const app = express();
 
 /* ================================
-   ✅ CORS CONFIG (DEV + PROD)
+   ✅ CORS (DEV + PROD)
 ================================ */
 const allowedOrigins = [
   "http://localhost:5173",
@@ -17,15 +17,12 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-  origin: function (origin, callback) {
-    // Autorise Postman / curl / SSR
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS not allowed"));
     }
-
-    return callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
 }));
@@ -37,18 +34,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* ================================
-   DB
+   DATABASE
 ================================ */
 db.sequelize.authenticate()
-  .then(() => console.log("✅ DB connecté avec succès"))
-  .catch(err => console.error("❌ DB error:", err));
+  .then(() => console.log("✅ DB connectée"))
+  .catch(err => console.error("❌ DB erreur :", err));
 
 db.sequelize.sync({ alter: false })
   .then(() => console.log("✅ Modèles synchronisés"))
-  .catch(err => console.error("❌ Sync error:", err));
+  .catch(err => console.error("❌ Sync erreur :", err));
 
 /* ================================
-   ROUTES
+   ROUTES API
 ================================ */
 app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/users", require("./routes/user.routes"));
@@ -65,6 +62,9 @@ app.use("/api/teachers", require("./routes/teacher.routes"));
 app.use("/api/schedules", require("./routes/schedule.routes"));
 app.use("/api/presence", require("./routes/presence.routes"));
 
+/* ================================
+   STATIC FILES
+================================ */
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -87,5 +87,5 @@ app.use((req, res) => {
 ================================ */
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`⚡ Serveur en écoute sur le port ${PORT}`);
+  console.log(`🚀 Serveur lancé sur le port ${PORT}`);
 });
