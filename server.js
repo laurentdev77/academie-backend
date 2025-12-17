@@ -9,7 +9,7 @@ dotenv.config();
 const app = express();
 
 /* ================================
-   ✅ CORS (DEV + PROD)
+   CORS (DEV + PROD)
 ================================ */
 const allowedOrigins = [
   "http://localhost:5173",
@@ -17,35 +17,24 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS not allowed"));
-    }
-  },
+  origin: allowedOrigins,
   credentials: true,
 }));
 
-/* ================================
-   BODY PARSERS
-================================ */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* ================================
-   DATABASE
+   DB
 ================================ */
 db.sequelize.authenticate()
-  .then(() => console.log("✅ DB connectée"))
-  .catch(err => console.error("❌ DB erreur :", err));
+  .then(() => console.log("✅ DB connecté"))
+  .catch(err => console.error("❌ DB error:", err));
 
-db.sequelize.sync({ alter: false })
-  .then(() => console.log("✅ Modèles synchronisés"))
-  .catch(err => console.error("❌ Sync erreur :", err));
+db.sequelize.sync({ alter: false });
 
 /* ================================
-   ROUTES API
+   ROUTES
 ================================ */
 app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/users", require("./routes/user.routes"));
@@ -62,11 +51,7 @@ app.use("/api/teachers", require("./routes/teacher.routes"));
 app.use("/api/schedules", require("./routes/schedule.routes"));
 app.use("/api/presence", require("./routes/presence.routes"));
 
-/* ================================
-   STATIC FILES
-================================ */
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
 
 /* ================================
    ROOT
@@ -82,10 +67,7 @@ app.use((req, res) => {
   res.status(404).json({ message: "Route non trouvée" });
 });
 
-/* ================================
-   START SERVER
-================================ */
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur lancé sur le port ${PORT}`);
+  console.log(`⚡ Serveur lancé sur le port ${PORT}`);
 });

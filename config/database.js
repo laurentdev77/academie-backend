@@ -1,19 +1,23 @@
-// backend/config/database.js
-import { Sequelize } from 'sequelize';
-import dotenv from 'dotenv';
-
-dotenv.config();
+const { Sequelize } = require("sequelize");
+const dbConfig = require("./db.config");
 
 const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
+  dbConfig.DB,
+  dbConfig.USER,
+  dbConfig.PASSWORD,
   {
-    host: process.env.DB_HOST || 'localhost',
-    dialect: 'postgres',
+    host: dbConfig.HOST,
+    port: dbConfig.PORT,
+    dialect: dbConfig.dialect,
     logging: false,
-    port: process.env.DB_PORT || 5432
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
+    },
+    pool: dbConfig.pool,
   }
 );
 
-export default sequelize;
+module.exports = sequelize;

@@ -85,13 +85,12 @@ exports.login = async (req, res) => {
     const { username, email, usernameOrEmail, password } = req.body;
 
     if (!password || !(username || email || usernameOrEmail)) {
-      return res
-        .status(400)
-        .json({ message: "Username ou email et mot de passe requis." });
+      return res.status(400).json({ message: "Username ou email et mot de passe requis." });
     }
 
     const loginField = (username || email || usernameOrEmail).toString().trim();
 
+    // Récupération de l'utilisateur avec son rôle
     const user = await User.scope("withPassword").findOne({
       where: {
         [Op.or]: [
@@ -99,26 +98,25 @@ exports.login = async (req, res) => {
           { email: loginField.toLowerCase() },
         ],
       },
-      include: [{ model: Role, as: "role", attributes: ["id", "name"] }],
+      include: [{
+        model: Role,
+        as: "role", // l'alias doit correspondre exactement à celui de l'association
+        attributes: ["id", "name"],
+      }],
     });
 
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé." });
-    }
+    if (!user) return res.status(404).json({ message: "Utilisateur non trouvé." });
 
     if (user.status !== "active") {
       return res.status(403).json({
-        message:
-          "Votre compte est inactif. Veuillez attendre la validation d’un administrateur.",
+        message: "Votre compte est inactif. Veuillez attendre la validation d’un administrateur.",
       });
     }
 
     const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) {
-      return res.status(401).json({ message: "Mot de passe incorrect." });
-    }
+    if (!isValid) return res.status(401).json({ message: "Mot de passe incorrect." });
 
-    // Générer le token
+    // Générer le token JWT
     const token = jwt.sign(
       { id: user.id, role: user.role ? user.role.name : null },
       JWT_SECRET,
@@ -128,22 +126,14 @@ exports.login = async (req, res) => {
     // Mettre à jour la dernière connexion
     await user.update({ lastLoginAt: new Date() });
 
-    // 🔥 FIX : envoyer le token dans un cookie sécurisé (indispensable)
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: false, // mettre true en prod HTTPS
-      sameSite: "lax",
-      maxAge: 1000 * 60 * 60 * 12, // 12 heures
-    });
-
-    // Réponse JSON (inchangée)
+    // Réponse JSON avec le rôle correct
     return res.json({
       message: "Connexion réussie.",
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: user.role,
+        role: user.role ? { id: user.role.id, name: user.role.name } : null,
         status: user.status,
         lastLoginAt: user.lastLoginAt,
       },
