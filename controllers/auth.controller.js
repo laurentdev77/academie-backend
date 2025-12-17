@@ -90,43 +90,38 @@ exports.login = async (req, res) => {
 
     const loginField = (username || email || usernameOrEmail).toString().trim();
 
-    // Récupération de l'utilisateur avec son rôle
-    const user = await User.scope("withPassword").findOne({
-      where: {
-        [Op.or]: [
-          { username: loginField },
-          { email: loginField.toLowerCase() },
-        ],
-      },
-      include: [{
-        model: Role,
-        as: "role", // l'alias doit correspondre exactement à celui de l'association
-        attributes: ["id", "name"],
-      }],
-    });
+    // 🔹 Récupération de l'utilisateur avec son rôle
+    const user = await User.scope('withPassword').findOne({
+  where: {
+    [Op.or]: [
+      { username: loginField },
+      { email: loginField.toLowerCase() },
+    ],
+  },
+  include: [
+    { model: Role, as: "role", attributes: ["id", "name"] }
+  ],
+});
 
     if (!user) return res.status(404).json({ message: "Utilisateur non trouvé." });
 
     if (user.status !== "active") {
-      return res.status(403).json({
-        message: "Votre compte est inactif. Veuillez attendre la validation d’un administrateur.",
-      });
+      return res.status(403).json({ message: "Votre compte est inactif." });
     }
 
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) return res.status(401).json({ message: "Mot de passe incorrect." });
 
-    // Générer le token JWT
+    // 🔹 Générer le token avec le rôle
     const token = jwt.sign(
       { id: user.id, role: user.role ? user.role.name : null },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES }
     );
 
-    // Mettre à jour la dernière connexion
+    // 🔹 Mettre à jour la dernière connexion
     await user.update({ lastLoginAt: new Date() });
 
-    // Réponse JSON avec le rôle correct
     return res.json({
       message: "Connexion réussie.",
       user: {
@@ -139,14 +134,13 @@ exports.login = async (req, res) => {
       },
       token,
     });
+
   } catch (err) {
     console.error("Erreur login:", err);
-    return res.status(500).json({
-      message: "Erreur serveur lors de la connexion.",
-      error: err.message,
-    });
+    return res.status(500).json({ message: "Erreur serveur lors de la connexion.", error: err.message });
   }
 };
+
 
 /**
  * -------------------------
@@ -156,74 +150,18 @@ exports.login = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     const userId = req.userId || (req.user && req.user.id);
-    if (!userId) {
-      return res.status(401).json({ message: "Non authentifié." });
-    }
+    if (!userId) return res.status(401).json({ message: "Non authentifié." });
 
-    const user = await User.findByPk(userId, {
-      attributes: [
-        "id",
-        "username",
-        "email",
-        "status",
-        "roleId",
-        "lastLoginAt",
-        "createdAt",
-      ],
-      include: [{ model: Role, as: "role", attributes: ["id", "name"] }],
-    });
+    const user = await User.scope('withRole').findByPk(userId, {
+  attributes: [
+    "id", "username", "email", "telephone", "photoUrl",
+    "status", "lastLoginAt", "createdAt"
+  ]
+});
 
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé." });
-    }
+    if (!user) return res.status(404).json({ message: "Utilisateur non trouvé." });
 
-    return res.json({ user });
-  } catch (err) {
-    console.error("Erreur getProfile:", err);
-    return res.status(500).json({
-      message: "Erreur serveur lors du chargement du profil.",
-      error: err.message,
-    });
-  }
-};
-
-/**
- * GET PROFILE - sécurisé
- */
-exports.getProfile = async (req, res) => {
-  try {
-    // req.userId est ajouté par verifyToken
-    const userId = req.userId;
-
-    if (!userId) {
-      return res.status(401).json({ message: "Non authentifié." });
-    }
-
-    const user = await User.findByPk(userId, {
-      attributes: [
-        "id",
-        "username",
-        "email",
-        "telephone",
-        "photoUrl",
-        "status",
-        "lastLoginAt",
-        "createdAt",
-      ],
-      include: [
-        {
-          model: Role,
-          as: "role",
-          attributes: ["id", "name"],
-        },
-      ],
-    });
-
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé." });
-    }
-
-    // Si c’est un étudiant, inclure son profil étudiant
+    // 🔹 Si c’est un étudiant, inclure son profil étudiant
     let student = null;
     if (user.role?.name === "student") {
       student = await Student.findOne({
@@ -232,12 +170,14 @@ exports.getProfile = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ user, student });
-  } catch (error) {
-    console.error("Erreur getProfile:", error);
-    return res.status(500).json({
-      message: "Erreur serveur lors du chargement du profil.",
-      error: error.message,
+    return res.status(200).json({
+      user,
+      student
     });
+
+  } catch (err) {
+    console.error("Erreur getProfile:", err);
+    return res.status(500).json({ message: "Erreur serveur lors du chargement du profil.", error: err.message });
   }
 };
+
