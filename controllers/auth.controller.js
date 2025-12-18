@@ -89,21 +89,20 @@ exports.login = async (req, res) => {
     }
 
     const user = await User.scope("withPassword").findOne({
-      where: {
-        [Op.or]: [
-          { username: usernameOrEmail },
-          { email: usernameOrEmail.toLowerCase() },
-        ],
-      },
-      include: [
-        {
-          model: Role,
-          as: "role",
-          attributes: ["id", "name"],
-          required: true, // 🔥 FORCE la jointure SQL
-        },
-      ],
-    });
+  where: {
+    [Op.or]: [
+      { username: loginField },
+      { email: loginField.toLowerCase() },
+    ],
+  },
+  include: [
+    {
+      model: Role,
+      as: "role",
+      required: true, // 🔥 FORCE le JOIN
+    },
+  ],
+});
 
     if (!user) {
       return res.status(404).json({ message: "Utilisateur non trouvé." });
