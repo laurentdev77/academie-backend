@@ -82,44 +82,51 @@ exports.register = async (req, res) => {
  */
 exports.login = async (req, res) => {
   try {
-    const { username, email, usernameOrEmail, password } = req.body;
+    const { usernameOrEmail, password } = req.body;
 
-    if (!password || !(username || email || usernameOrEmail)) {
-      return res.status(400).json({ message: "Username ou email et mot de passe requis." });
+    if (!usernameOrEmail || !password) {
+      return res.status(400).json({ message: "Identifiants requis." });
     }
 
-    const loginField = (username || email || usernameOrEmail).toString().trim();
+    const user = await User.scope("withPassword").findOne({
+      where: {
+        [Op.or]: [
+          { username: usernameOrEmail },
+          { email: usernameOrEmail.toLowerCase() },
+        ],
+      },
+      include: [
+        {
+          model: Role,
+          as: "role",
+          attributes: ["id", "name"],
+          required: true, // 🔥 FORCE la jointure SQL
+        },
+      ],
+    });
 
-    // 🔹 Récupération de l'utilisateur avec son rôle
-    const user = await User.scope('withPassword').findOne({
-  where: {
-    [Op.or]: [
-      { username: loginField },
-      { email: loginField.toLowerCase() },
-    ],
-  },
-  include: [
-    { model: Role, as: "role", attributes: ["id", "name"] }
-  ],
-});
-
-    if (!user) return res.status(404).json({ message: "Utilisateur non trouvé." });
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur non trouvé." });
+    }
 
     if (user.status !== "active") {
-      return res.status(403).json({ message: "Votre compte est inactif." });
+      return res.status(403).json({ message: "Compte inactif." });
     }
 
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) return res.status(401).json({ message: "Mot de passe incorrect." });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
+      return res.status(401).json({ message: "Mot de passe incorrect." });
+    }
 
-    // 🔹 Générer le token avec le rôle
     const token = jwt.sign(
-      { id: user.id, role: user.role ? user.role.name : null },
+      {
+        id: user.id,
+        role: user.role.name,
+      },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES }
     );
 
-    // 🔹 Mettre à jour la dernière connexion
     await user.update({ lastLoginAt: new Date() });
 
     return res.json({
@@ -128,19 +135,20 @@ exports.login = async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: user.role ? { id: user.role.id, name: user.role.name } : null,
+        role: {
+          id: user.role.id,
+          name: user.role.name,
+        },
         status: user.status,
         lastLoginAt: user.lastLoginAt,
       },
       token,
     });
-
   } catch (err) {
-    console.error("Erreur login:", err);
-    return res.status(500).json({ message: "Erreur serveur lors de la connexion.", error: err.message });
+    console.error("LOGIN ERROR:", err);
+    return res.status(500).json({ message: "Erreur serveur." });
   }
 };
-
 
 /**
  * -------------------------

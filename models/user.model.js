@@ -1,5 +1,4 @@
-"use strict";
-
+// backend/models/user.model.js
 module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define(
     "User",
@@ -18,7 +17,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false,
         unique: true,
-        validate: { isEmail: true },
       },
       password: {
         type: DataTypes.STRING,
@@ -41,7 +39,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       roleId: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
       lastLoginAt: {
         type: DataTypes.DATE,
@@ -62,23 +60,10 @@ module.exports = (sequelize, DataTypes) => {
       },
       scopes: {
         withPassword: { attributes: {} },
-        // 🔹 Scope pour inclure le rôle
-        withRole() {
-          return {
-            include: [
-              {
-                model: sequelize.models.Role,
-                as: "role",
-                attributes: ["id", "name"],
-              },
-            ],
-          };
-        },
       },
     }
   );
 
-  // 🔗 Associations
   User.associate = (models) => {
     User.belongsTo(models.Role, { foreignKey: "roleId", as: "role" });
     User.hasOne(models.Student, { foreignKey: "userId", as: "student" });
