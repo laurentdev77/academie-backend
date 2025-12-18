@@ -76,6 +76,7 @@ exports.register = async (req, res) => {
 };
 
 /**
+ /**
  * -------------------------
  *  🔹 LOGIN
  * -------------------------
@@ -85,24 +86,22 @@ exports.login = async (req, res) => {
     const { usernameOrEmail, password } = req.body;
 
     if (!usernameOrEmail || !password) {
-      return res.status(400).json({ message: "Identifiants requis." });
+      return res.status(400).json({
+        message: "Identifiant (username ou email) et mot de passe requis.",
+      });
     }
 
+    const loginField = usernameOrEmail.toString().trim();
+
+    // 🔹 1. Récupération de l'utilisateur (SANS JOIN)
     const user = await User.scope("withPassword").findOne({
-  where: {
-    [Op.or]: [
-      { username: loginField },
-      { email: loginField.toLowerCase() },
-    ],
-  },
-  include: [
-    {
-      model: Role,
-      as: "role",
-      required: true, // 🔥 FORCE le JOIN
-    },
-  ],
-});
+      where: {
+        [Op.or]: [
+          { username: loginField },
+          { email: loginField.toLowerCase() },
+        ],
+      },
+    });
 
     if (!user) {
       return res.status(404).json({ message: "Utilisateur non trouvé." });
@@ -112,32 +111,44 @@ exports.login = async (req, res) => {
       return res.status(403).json({ message: "Compte inactif." });
     }
 
+    // 🔹 2. Vérification du mot de passe
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
       return res.status(401).json({ message: "Mot de passe incorrect." });
     }
 
+    // 🔹 3. Récupération MANUELLE du rôle (FIX RENDER)
+    let role = null;
+    if (user.roleId) {
+      role = await Role.findByPk(user.roleId);
+    }
+
+    // 🔹 4. Génération du token JWT
     const token = jwt.sign(
       {
         id: user.id,
-        role: user.role.name,
+        role: role ? role.name : null,
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES }
     );
 
+    // 🔹 5. Mise à jour de la dernière connexion
     await user.update({ lastLoginAt: new Date() });
 
-    return res.json({
+    // 🔹 6. Réponse finale
+    return res.status(200).json({
       message: "Connexion réussie.",
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: {
-          id: user.role.id,
-          name: user.role.name,
-        },
+        role: role
+          ? {
+              id: role.id,
+              name: role.name,
+            }
+          : null,
         status: user.status,
         lastLoginAt: user.lastLoginAt,
       },
@@ -145,7 +156,10 @@ exports.login = async (req, res) => {
     });
   } catch (err) {
     console.error("LOGIN ERROR:", err);
-    return res.status(500).json({ message: "Erreur serveur." });
+    return res.status(500).json({
+      message: "Erreur serveur lors de la connexion.",
+      error: err.message,
+    });
   }
 };
 
