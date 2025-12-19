@@ -171,18 +171,28 @@ exports.login = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     const userId = req.userId || (req.user && req.user.id);
-    if (!userId) return res.status(401).json({ message: "Non authentifié." });
+    if (!userId) {
+      return res.status(401).json({ message: "Non authentifié." });
+    }
 
-    const user = await User.scope('withRole').findByPk(userId, {
-  attributes: [
-    "id", "username", "email", "telephone", "photoUrl",
-    "status", "lastLoginAt", "createdAt"
-  ]
-});
+    // 🔹 Récupérer l'utilisateur avec son rôle via include
+    const user = await User.findByPk(userId, {
+      attributes: [
+        "id", "username", "email", "telephone", "photoUrl",
+        "status", "lastLoginAt", "createdAt"
+      ],
+      include: [
+        {
+          model: Role,
+          as: "role",
+          attributes: ["id", "name"],
+        },
+      ],
+    });
 
     if (!user) return res.status(404).json({ message: "Utilisateur non trouvé." });
 
-    // 🔹 Si c’est un étudiant, inclure son profil étudiant
+    // 🔹 Si étudiant, inclure profil étudiant
     let student = null;
     if (user.role?.name === "student") {
       student = await Student.findOne({
@@ -191,14 +201,25 @@ exports.getProfile = async (req, res) => {
       });
     }
 
+    // 🔹 Si enseignant, inclure profil enseignant
+    let teacher = null;
+    if (["teacher", "enseignant"].includes(user.role?.name)) {
+      teacher = await Teacher.findOne({
+        where: { userId: user.id },
+        attributes: ["id", "nom", "prenom", "grade", "specialite"],
+      });
+    }
+
     return res.status(200).json({
       user,
-      student
+      student,
+      teacher,
     });
-
   } catch (err) {
     console.error("Erreur getProfile:", err);
-    return res.status(500).json({ message: "Erreur serveur lors du chargement du profil.", error: err.message });
+    return res.status(500).json({ 
+      message: "Erreur serveur lors du chargement du profil.", 
+      error: err.message 
+    });
   }
 };
-
