@@ -1,41 +1,27 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
-const { User, Role } = require("../models");
-
 const router = express.Router();
+const db = require("../models");
 
-// ⚠️ ROUTE TEMPORAIRE — À SUPPRIMER APRÈS
-router.post("/create-admin", async (req, res) => {
+router.post("/seed-roles", async (req, res) => {
   try {
-    const adminRole = await Role.findOne({ where: { name: "admin" } });
+    const roles = ["student", "teacher", "secretary", "DE", "admin"];
 
-    if (!adminRole) {
-      return res.status(500).json({ message: "Role admin introuvable" });
+    const created = [];
+
+    for (const name of roles) {
+      const [role, isCreated] = await db.Role.findOrCreate({
+        where: { name },
+      });
+      if (isCreated) created.push(name);
     }
-
-    const existing = await User.findOne({ where: { username: "admin" } });
-    if (existing) {
-      return res.json({ message: "Admin existe déjà" });
-    }
-
-    const password = await bcrypt.hash("Admin123456", 10);
-
-    const admin = await User.create({
-      username: "admin",
-      email: "admin@academie.com",
-      password,
-      roleId: adminRole.id,
-      status: "active",
-    });
 
     return res.json({
-      message: "ADMIN CRÉÉ",
-      id: admin.id,
-      roleId: admin.roleId,
+      message: "Roles seedés",
+      created,
     });
-  } catch (error) {
-    console.error("CREATE ADMIN ERROR:", error);
-    return res.status(500).json({ message: "Erreur serveur" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
   }
 });
 
