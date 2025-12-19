@@ -53,8 +53,6 @@ app.use("/api/presence", require("./routes/presence.routes"));
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.use("/api/dev", require("./routes/dev.routes"));
-
 /* ================================
    ROOT
 ================================ */
