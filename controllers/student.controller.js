@@ -84,46 +84,41 @@ exports.createStudent = async (req, res) => {
       photoUrl,
     } = req.body;
 
-    console.log("📥 createStudent body:", req.body);
-
-    // Validation obligatoire
     if (!nom || !matricule || !promotionId) {
       return res.status(400).json({
-        message: "Nom, matricule et promotion sont obligatoires."
+        message: "Nom, matricule et promotion sont obligatoires.",
       });
     }
 
+    // promotionId = INT
     const promotionIdNum = Number(promotionId);
     if (isNaN(promotionIdNum)) {
       return res.status(400).json({ message: "promotionId invalide" });
     }
 
-    const userIdNum = userId ? Number(userId) : null;
-    if (userId && isNaN(userIdNum)) {
-      return res.status(400).json({ message: "userId invalide" });
-    }
+    // 🔥 FIX UUID
+    const userIdValue = userId || null;
 
     if (dateNaissance && isNaN(Date.parse(dateNaissance))) {
       return res.status(400).json({ message: "dateNaissance invalide" });
     }
 
-    // Vérification doublon matricule
     const existing = await Student.findOne({ where: { matricule } });
     if (existing) {
       return res.status(409).json({ message: "Ce matricule existe déjà." });
     }
 
-    // Vérification liaison userId unique
-    if (userIdNum) {
-      const existingLink = await Student.findOne({ where: { userId: userIdNum } });
+    if (userIdValue) {
+      const existingLink = await Student.findOne({
+        where: { userId: userIdValue },
+      });
       if (existingLink) {
         return res.status(400).json({
-          message: "Cet utilisateur est déjà lié à un autre étudiant."
+          message: "Cet utilisateur est déjà lié à un autre étudiant.",
         });
       }
     }
 
-    // Création de l’étudiant
     const student = await Student.create({
       nom,
       prenom,
@@ -134,38 +129,34 @@ exports.createStudent = async (req, res) => {
       grade,
       etatDossier,
       promotionId: promotionIdNum,
-      userId: userIdNum || null,
+      userId: userIdValue,
       photoUrl: photoUrl || null,
     });
 
-    // Retour complet avec relations
     const newStudent = await Student.findByPk(student.id, {
       include: [
         {
           model: Promotion,
           as: "promotion",
-          include: [{ model: Filiere, as: "filiere" }]
+          include: [{ model: Filiere, as: "filiere" }],
         },
         {
           model: User,
           as: "user",
-          attributes: ["id", "username", "email", "telephone", "photoUrl"]
-        }
+          attributes: ["id", "username", "email", "telephone", "photoUrl"],
+        },
       ],
     });
 
-    console.log("✅ Étudiant créé:", newStudent);
-
-    res.status(201).json({
+    return res.status(201).json({
       message: "Étudiant créé avec succès",
-      student: newStudent
+      student: newStudent,
     });
-
   } catch (error) {
     console.error("❌ Erreur createStudent:", error);
-    res.status(500).json({
+    return res.status(500).json({
       message: "Erreur serveur",
-      error: error.message
+      error: error.message,
     });
   }
 };
