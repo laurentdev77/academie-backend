@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -21,8 +22,21 @@ app.use(cors({
   credentials: true,
 }));
 
+/* ================================
+   PARSERS
+================================ */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+/* ================================
+   LOGGER REQUÊTES
+================================ */
+app.use((req, res, next) => {
+  console.log(`[REQUEST] ${req.method} ${req.url}`);
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
+  next();
+});
 
 /* ================================
    DB
@@ -31,7 +45,9 @@ db.sequelize.authenticate()
   .then(() => console.log("✅ DB connecté"))
   .catch(err => console.error("❌ DB error:", err));
 
-db.sequelize.sync({ alter: false });
+db.sequelize.sync({ alter: false })
+  .then(() => console.log("✅ Tables synchronisées"))
+  .catch(err => console.error("❌ Sync DB error:", err));
 
 /* ================================
    ROUTES
@@ -51,6 +67,9 @@ app.use("/api/teachers", require("./routes/teacher.routes"));
 app.use("/api/schedules", require("./routes/schedule.routes"));
 app.use("/api/presence", require("./routes/presence.routes"));
 
+/* ================================
+   UPLOADS
+================================ */
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 /* ================================
@@ -63,10 +82,24 @@ app.get("/", (req, res) => {
 /* ================================
    404
 ================================ */
-app.use((req, res) => {
+app.use((req, res, next) => {
   res.status(404).json({ message: "Route non trouvée" });
 });
 
+/* ================================
+   MIDDLEWARE GLOBAL D'ERREUR
+================================ */
+app.use((err, req, res, next) => {
+  console.error("💥 ERREUR BACKEND:", err);
+  res.status(err.status || 500).json({
+    message: err.message || "Erreur serveur",
+    stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+  });
+});
+
+/* ================================
+   LANCEMENT SERVEUR
+================================ */
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`⚡ Serveur lancé sur le port ${PORT}`);

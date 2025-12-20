@@ -9,7 +9,7 @@ const path = require("path");
 
 /* ============================================================
    🔹 Liste complète des étudiants
-   ============================================================ */
+============================================================ */
 exports.getAllStudents = async (req, res) => {
   try {
     const students = await Student.findAll({
@@ -37,7 +37,7 @@ exports.getAllStudents = async (req, res) => {
 
 /* ============================================================
    🔹 Récupérer un étudiant par ID
-   ============================================================ */
+============================================================ */
 exports.getStudentById = async (req, res) => {
   try {
     const student = await Student.findByPk(req.params.id, {
@@ -67,7 +67,7 @@ exports.getStudentById = async (req, res) => {
 
 /* ============================================================
    🔹 Créer un étudiant
-   ============================================================ */
+============================================================ */
 exports.createStudent = async (req, res) => {
   try {
     const {
@@ -84,26 +84,46 @@ exports.createStudent = async (req, res) => {
       photoUrl,
     } = req.body;
 
-    if (!nom || !matricule || !promotionId)
-      return res
-        .status(400)
-        .json({ message: "Nom, matricule et promotion sont obligatoires." });
+    console.log("📥 createStudent body:", req.body);
 
-    // Vérifier doublon matricule
-    const existing = await Student.findOne({ where: { matricule } });
-    if (existing)
-      return res.status(409).json({ message: "Ce matricule existe déjà." });
-
-    // Vérifier doublon de liaison userId
-    if (userId) {
-      const existingLink = await Student.findOne({ where: { userId } });
-      if (existingLink)
-        return res
-          .status(400)
-          .json({ message: "Cet utilisateur est déjà lié à un autre étudiant." });
+    // Validation obligatoire
+    if (!nom || !matricule || !promotionId) {
+      return res.status(400).json({
+        message: "Nom, matricule et promotion sont obligatoires."
+      });
     }
 
-    // Création
+    const promotionIdNum = Number(promotionId);
+    if (isNaN(promotionIdNum)) {
+      return res.status(400).json({ message: "promotionId invalide" });
+    }
+
+    const userIdNum = userId ? Number(userId) : null;
+    if (userId && isNaN(userIdNum)) {
+      return res.status(400).json({ message: "userId invalide" });
+    }
+
+    if (dateNaissance && isNaN(Date.parse(dateNaissance))) {
+      return res.status(400).json({ message: "dateNaissance invalide" });
+    }
+
+    // Vérification doublon matricule
+    const existing = await Student.findOne({ where: { matricule } });
+    if (existing) {
+      return res.status(409).json({ message: "Ce matricule existe déjà." });
+    }
+
+    // Vérification liaison userId unique
+    if (userIdNum) {
+      const existingLink = await Student.findOne({ where: { userId: userIdNum } });
+      if (existingLink) {
+        return res.status(400).json({
+          message: "Cet utilisateur est déjà lié à un autre étudiant."
+        });
+      }
+    }
+
+    // Création de l’étudiant
     const student = await Student.create({
       nom,
       prenom,
@@ -113,33 +133,53 @@ exports.createStudent = async (req, res) => {
       lieuNaissance,
       grade,
       etatDossier,
-      promotionId,
-      userId: userId || null,
+      promotionId: promotionIdNum,
+      userId: userIdNum || null,
       photoUrl: photoUrl || null,
     });
 
+    // Retour complet avec relations
     const newStudent = await Student.findByPk(student.id, {
       include: [
-        { model: Promotion, as: "promotion", include: [{ model: Filiere, as: "filiere" }] },
-        { model: User, as: "user", attributes: ["id", "username", "email", "telephone", "photoUrl"] },
+        {
+          model: Promotion,
+          as: "promotion",
+          include: [{ model: Filiere, as: "filiere" }]
+        },
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "username", "email", "telephone", "photoUrl"]
+        }
       ],
     });
 
-    res.status(201).json({ message: "Étudiant créé avec succès", student: newStudent });
+    console.log("✅ Étudiant créé:", newStudent);
+
+    res.status(201).json({
+      message: "Étudiant créé avec succès",
+      student: newStudent
+    });
+
   } catch (error) {
-    console.error("Erreur createStudent:", error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+    console.error("❌ Erreur createStudent:", error);
+    res.status(500).json({
+      message: "Erreur serveur",
+      error: error.message
+    });
   }
 };
 
 /* ============================================================
    🔹 Mise à jour d’un étudiant
-   ============================================================ */
+============================================================ */
 exports.updateStudent = async (req, res) => {
   try {
-    const student = await Student.findByPk(req.params.id);
-    if (!student)
+    const studentId = req.params.id;
+    const student = await Student.findByPk(studentId);
+    if (!student) {
       return res.status(404).json({ message: "Étudiant introuvable." });
+    }
 
     const {
       nom,
@@ -155,13 +195,35 @@ exports.updateStudent = async (req, res) => {
       photoUrl,
     } = req.body;
 
-    // Vérification userId unique
-    if (userId && userId !== student.userId) {
-      const existingLink = await Student.findOne({ where: { userId } });
-      if (existingLink)
-        return res
-          .status(400)
-          .json({ message: "Cet utilisateur est déjà lié à un autre étudiant." });
+    console.log("📥 updateStudent body:", req.body);
+
+    if (!nom || !matricule || !promotionId) {
+      return res.status(400).json({
+        message: "Nom, matricule et promotion sont obligatoires."
+      });
+    }
+
+    const promotionIdNum = Number(promotionId);
+    if (isNaN(promotionIdNum)) {
+      return res.status(400).json({ message: "promotionId invalide" });
+    }
+
+    const userIdNum = userId ? Number(userId) : null;
+    if (userId && isNaN(userIdNum)) {
+      return res.status(400).json({ message: "userId invalide" });
+    }
+
+    if (dateNaissance && isNaN(Date.parse(dateNaissance))) {
+      return res.status(400).json({ message: "dateNaissance invalide" });
+    }
+
+    if (userIdNum && userIdNum !== student.userId) {
+      const existingLink = await Student.findOne({ where: { userId: userIdNum } });
+      if (existingLink) {
+        return res.status(400).json({
+          message: "Cet utilisateur est déjà lié à un autre étudiant."
+        });
+      }
     }
 
     await student.update({
@@ -173,28 +235,31 @@ exports.updateStudent = async (req, res) => {
       lieuNaissance,
       grade,
       etatDossier,
-      promotionId,
-      userId: userId || null,
+      promotionId: promotionIdNum,
+      userId: userIdNum || null,
       photoUrl: photoUrl || student.photoUrl,
     });
 
-    const updated = await Student.findByPk(student.id, {
+    const updatedStudent = await Student.findByPk(student.id, {
       include: [
         { model: Promotion, as: "promotion", include: [{ model: Filiere, as: "filiere" }] },
         { model: User, as: "user", attributes: ["id", "username", "email", "telephone", "photoUrl"] },
       ],
     });
 
-    res.status(200).json({ message: "Étudiant mis à jour", student: updated });
+    console.log("✅ Étudiant mis à jour:", updatedStudent);
+
+    res.status(200).json({ message: "Étudiant mis à jour", student: updatedStudent });
+
   } catch (error) {
-    console.error("Erreur updateStudent:", error);
+    console.error("❌ Erreur updateStudent:", error);
     res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
 
 /* ============================================================
    🔹 Supprimer un étudiant
-   ============================================================ */
+============================================================ */
 exports.deleteStudent = async (req, res) => {
   try {
     const student = await Student.findByPk(req.params.id);
@@ -211,7 +276,7 @@ exports.deleteStudent = async (req, res) => {
 
 /* ============================================================
    🔹 Liaison User ↔ Étudiant
-   ============================================================ */
+============================================================ */
 exports.linkUserToStudent = async (req, res) => {
   try {
     const { studentId, userId } = req.body;
@@ -237,7 +302,9 @@ exports.linkUserToStudent = async (req, res) => {
   }
 };
 
-// Liste des étudiants d'une promotion spécifique
+/* ============================================================
+   🔹 Liste des étudiants d'une promotion spécifique
+============================================================ */
 exports.getStudentsByPromotion = async (req, res) => {
   try {
     const { promotionId } = req.params;
@@ -261,6 +328,9 @@ exports.getStudentsByPromotion = async (req, res) => {
   }
 };
 
+/* ============================================================
+   🔹 Récupérer les modules pour un étudiant
+============================================================ */
 exports.getModulesForStudent = async (req, res) => {
   try {
     const studentId = req.studentId;
@@ -268,7 +338,6 @@ exports.getModulesForStudent = async (req, res) => {
       return res.status(403).json({ message: "Accès réservé aux étudiants." });
     }
 
-    // Récupérer l'étudiant avec sa promotion
     const student = await db.Student.findByPk(studentId, {
       include: [
         {
@@ -283,7 +352,6 @@ exports.getModulesForStudent = async (req, res) => {
       return res.status(404).json({ message: "Promotion non trouvée." });
     }
 
-    // Récupérer les modules de sa promotion + ressources
     const modules = await db.Module.findAll({
       where: { promotionId: student.promotion.id },
       include: [
@@ -293,8 +361,8 @@ exports.getModulesForStudent = async (req, res) => {
           attributes: ["id", "title", "url", "type", "description", "createdAt"]
         },
         {
-          model: db.User,     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< CORRECTION
-          as: "teacher",      // alias correct
+          model: db.User,
+          as: "teacher",
           attributes: ["username", "email"]
         },
         {
