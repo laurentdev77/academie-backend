@@ -33,6 +33,37 @@ exports.getAllStudents = async (req, res) => {
 };
 
 /* ============================================================
+   🔹 Récupérer un étudiant par ID
+============================================================ */
+exports.getStudentById = async (req, res) => {
+  try {
+    const student = await Student.findByPk(req.params.id, {
+      include: [
+        {
+          model: Promotion,
+          as: "promotion",
+          include: [{ model: Filiere, as: "filiere" }],
+        },
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "username", "email", "telephone", "photoUrl"],
+        },
+      ],
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: "Étudiant introuvable" });
+    }
+
+    res.status(200).json(student);
+  } catch (error) {
+    console.error("Erreur getStudentById:", error);
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
+  }
+};
+
+/* ============================================================
    🔹 Créer un étudiant
 ============================================================ */
 exports.createStudent = async (req, res) => {
@@ -337,3 +368,4 @@ exports.getModulesForStudent = async (req, res) => {
     });
   }
 };
+
