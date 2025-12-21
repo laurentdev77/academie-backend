@@ -4,8 +4,6 @@ const Module = db.Module;
 const Promotion = db.Promotion;
 const Filiere = db.Filiere;
 const User = db.User;
-const Role = db.Role;
-const path = require("path");
 
 /* ============================================================
    🔹 Liste complète des étudiants
@@ -27,40 +25,9 @@ exports.getAllStudents = async (req, res) => {
       ],
       order: [["nom", "ASC"]],
     });
-
     res.status(200).json(students);
   } catch (error) {
     console.error("Erreur getAllStudents:", error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
-  }
-};
-
-/* ============================================================
-   🔹 Récupérer un étudiant par ID
-============================================================ */
-exports.getStudentById = async (req, res) => {
-  try {
-    const student = await Student.findByPk(req.params.id, {
-      include: [
-        {
-          model: Promotion,
-          as: "promotion",
-          include: [{ model: Filiere, as: "filiere" }],
-        },
-        {
-          model: User,
-          as: "user",
-          attributes: ["id", "username", "email", "telephone", "photoUrl"],
-        },
-      ],
-    });
-
-    if (!student)
-      return res.status(404).json({ message: "Étudiant introuvable" });
-
-    res.status(200).json(student);
-  } catch (error) {
-    console.error("Erreur getStudentById:", error);
     res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
@@ -166,13 +133,10 @@ exports.createStudent = async (req, res) => {
 ============================================================ */
 exports.updateStudent = async (req, res) => {
   try {
-    const studentId = req.params.id;
-    const student = await Student.findByPk(studentId);
-    if (!student) {
-      return res.status(404).json({ message: "Étudiant introuvable." });
-    }
+    const student = await Student.findByPk(req.params.id);
+    if (!student) return res.status(404).json({ message: "Étudiant introuvable." });
 
-    const {
+    let {
       nom,
       prenom,
       matricule,
@@ -186,35 +150,28 @@ exports.updateStudent = async (req, res) => {
       photoUrl,
     } = req.body;
 
-    console.log("📥 updateStudent body:", req.body);
-
     if (!nom || !matricule || !promotionId) {
-      return res.status(400).json({
-        message: "Nom, matricule et promotion sont obligatoires."
-      });
+      return res.status(400).json({ message: "Nom, matricule et promotion sont obligatoires." });
     }
+
+    // Vérification ENUM
+    if (sexe && !["M", "F", "Autre"].includes(sexe)) sexe = student.sexe;
+    if (etatDossier && !["en_cours", "complet", "incomplet"].includes(etatDossier))
+      etatDossier = student.etatDossier;
 
     const promotionIdNum = Number(promotionId);
-    if (isNaN(promotionIdNum)) {
-      return res.status(400).json({ message: "promotionId invalide" });
-    }
+    if (isNaN(promotionIdNum)) return res.status(400).json({ message: "promotionId invalide" });
 
-    const userIdNum = userId ? Number(userId) : null;
-    if (userId && isNaN(userIdNum)) {
-      return res.status(400).json({ message: "userId invalide" });
-    }
+    const userIdValue = userId || null;
 
     if (dateNaissance && isNaN(Date.parse(dateNaissance))) {
       return res.status(400).json({ message: "dateNaissance invalide" });
     }
 
-    if (userIdNum && userIdNum !== student.userId) {
-      const existingLink = await Student.findOne({ where: { userId: userIdNum } });
-      if (existingLink) {
-        return res.status(400).json({
-          message: "Cet utilisateur est déjà lié à un autre étudiant."
-        });
-      }
+    if (userIdValue && userIdValue !== student.userId) {
+      const existingLink = await Student.findOne({ where: { userId: userIdValue } });
+      if (existingLink)
+        return res.status(400).json({ message: "Cet utilisateur est déjà lié à un autre étudiant." });
     }
 
     await student.update({
@@ -227,7 +184,7 @@ exports.updateStudent = async (req, res) => {
       grade,
       etatDossier,
       promotionId: promotionIdNum,
-      userId: userIdNum || null,
+      userId: userIdValue,
       photoUrl: photoUrl || student.photoUrl,
     });
 
@@ -238,15 +195,13 @@ exports.updateStudent = async (req, res) => {
       ],
     });
 
-    console.log("✅ Étudiant mis à jour:", updatedStudent);
-
     res.status(200).json({ message: "Étudiant mis à jour", student: updatedStudent });
-
   } catch (error) {
     console.error("❌ Erreur updateStudent:", error);
     res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
+
 
 /* ============================================================
    🔹 Supprimer un étudiant
