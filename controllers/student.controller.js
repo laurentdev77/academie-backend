@@ -95,7 +95,7 @@ exports.createStudent = async (req, res) => {
     }
 
     // 🔥 FIX UUID
-    const userIdValue = userId || null;
+    const userIdValue = userId && userId !== "" ? userId : null;
 
     if (dateNaissance && isNaN(Date.parse(dateNaissance))) {
       return res.status(400).json({ message: "dateNaissance invalide" });
@@ -117,15 +117,27 @@ exports.createStudent = async (req, res) => {
       }
     }
 
+    const promotion = await Promotion.findByPk(promotionIdNum);
+if (!promotion) {
+  return res.status(400).json({
+    message: "Promotion invalide ou inexistante"
+  });
+}
+
+const sexeValide = ["M", "F", "Autre"].includes(sexe) ? sexe : null;
+const etatDossierValide = ["en_cours", "complet", "incomplet"].includes(etatDossier)
+  ? etatDossier
+  : "en_cours";
+
     const student = await Student.create({
       nom,
       prenom,
       matricule,
-      sexe,
+      sexe: sexeValide,
       dateNaissance: dateNaissance ? new Date(dateNaissance) : null,
       lieuNaissance,
       grade,
-      etatDossier,
+      etatDossier: etatDossierValide,
       promotionId: promotionIdNum,
       userId: userIdValue,
       photoUrl: photoUrl || null,

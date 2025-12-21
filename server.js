@@ -66,6 +66,7 @@ app.use("/api/dashboard", require("./routes/dashboard.routes"));
 app.use("/api/teachers", require("./routes/teacher.routes"));
 app.use("/api/schedules", require("./routes/schedule.routes"));
 app.use("/api/presence", require("./routes/presence.routes"));
+app.use("/api/dev", require("./routes/dev.routes"));
 
 /* ================================
    UPLOADS

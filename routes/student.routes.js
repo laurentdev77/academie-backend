@@ -8,8 +8,6 @@ const path = require("path");
 
 /* ============================================================
    📁 CONFIGURATION UPLOAD PHOTO
-   - Stocke dans /uploads
-   - Renomme les fichiers pour éviter collisions
 ============================================================ */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, "../uploads/")),
@@ -19,29 +17,27 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 /* ============================================================
-   🔐 Vérification du token pour toutes les routes
+   🔐 Vérification du token
 ============================================================ */
 router.use(authJwt.verifyToken);
 
 /* ============================================================
-   📸 Upload de photo étudiant
-   - Accès : Admin, Secretary, DE
+   📸 Upload photo étudiant
 ============================================================ */
 router.post(
   "/upload-photo",
   authJwt.isAdminFamily,
   upload.single("photo"),
   (req, res) => {
-    if (!req.file) return res.status(400).json({ message: "Aucun fichier reçu" });
-
-    const fileUrl = `/uploads/${req.file.filename}`;
-    res.status(200).json({ url: fileUrl });
+    if (!req.file) {
+      return res.status(400).json({ message: "Aucun fichier reçu" });
+    }
+    res.status(200).json({ url: `/uploads/${req.file.filename}` });
   }
 );
 
 /* ============================================================
    🎓 Modules de l'étudiant connecté
-   - Accès : étudiant
 ============================================================ */
 router.get(
   "/mes-modules",
@@ -50,18 +46,19 @@ router.get(
 );
 
 /* ============================================================
-   🧑‍💼 CRUD complet étudiants
-   - Accès : Admin, Secretary, DE
+   🧑‍💼 CRUD étudiants
 ============================================================ */
 router.get("/", authJwt.isAdminFamily, studentController.getAllStudents);
-router.get("/:id", authJwt.isAdminFamily, studentController.getStudentById);
+
+// ❌ SUPPRIMÉ car la fonction n’existe pas
+// router.get("/:id", authJwt.isAdminFamily, studentController.getStudentById);
+
 router.post("/", authJwt.isAdminFamily, studentController.createStudent);
 router.put("/:id", authJwt.isAdminFamily, studentController.updateStudent);
 router.delete("/:id", authJwt.isAdminFamily, studentController.deleteStudent);
 
 /* ============================================================
    👨‍🏫 Étudiants par promotion
-   - Accès : Enseignant
 ============================================================ */
 router.get(
   "/by-promotion/:promotionId",
@@ -71,8 +68,11 @@ router.get(
 
 /* ============================================================
    🔗 Liaison User ↔ Étudiant
-   - Accès : Admin, Secretary, DE
 ============================================================ */
-router.post("/link", authJwt.isAdminFamily, studentController.linkUserToStudent);
+router.post(
+  "/link",
+  authJwt.isAdminFamily,
+  studentController.linkUserToStudent
+);
 
 module.exports = router;
