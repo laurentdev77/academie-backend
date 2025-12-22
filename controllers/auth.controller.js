@@ -6,6 +6,8 @@ const jwt = require("jsonwebtoken");
 const User = db.User;
 const Student = db.Student;
 const Role = db.Role;
+const Teacher = db.Teacher;
+
 
 const JWT_SECRET = process.env.JWT_SECRET || "secretkey";
 const JWT_EXPIRES = process.env.ACCESS_TOKEN_EXPIRES_IN || "12h";

@@ -89,10 +89,13 @@ exports.createStudent = async (req, res) => {
     }
 
     // promotionId = INT
-    const promotionIdNum = Number(promotionId);
-    if (isNaN(promotionIdNum)) {
-      return res.status(400).json({ message: "promotionId invalide" });
-    }
+    const promotionIdNum = parseInt(promotionId, 10);
+
+if (!promotionIdNum || promotionIdNum <= 0) {
+  return res.status(400).json({
+    message: "promotionId invalide ou manquant",
+  });
+}
 
     // 🔥 FIX UUID
     const userIdValue = userId && userId !== "" ? userId : null;
@@ -116,6 +119,15 @@ exports.createStudent = async (req, res) => {
         });
       }
     }
+
+    if (userIdValue) {
+  const userExists = await User.findByPk(userIdValue);
+  if (!userExists) {
+    return res.status(400).json({
+      message: "Utilisateur inexistant (userId invalide)",
+    });
+  }
+}
 
     const promotion = await Promotion.findByPk(promotionIdNum);
 if (!promotion) {
@@ -177,7 +189,9 @@ const etatDossierValide = ["en_cours", "complet", "incomplet"].includes(etatDoss
 exports.updateStudent = async (req, res) => {
   try {
     const student = await Student.findByPk(req.params.id);
-    if (!student) return res.status(404).json({ message: "Étudiant introuvable." });
+    if (!student) {
+      return res.status(404).json({ message: "Étudiant introuvable." });
+    }
 
     let {
       nom,
@@ -193,39 +207,79 @@ exports.updateStudent = async (req, res) => {
       photoUrl,
     } = req.body;
 
+    /* =========================
+       VALIDATIONS DE BASE
+    ========================= */
     if (!nom || !matricule || !promotionId) {
-      return res.status(400).json({ message: "Nom, matricule et promotion sont obligatoires." });
+      return res.status(400).json({
+        message: "Nom, matricule et promotion sont obligatoires.",
+      });
     }
 
-    // Vérification ENUM
-    if (sexe && !["M", "F", "Autre"].includes(sexe)) sexe = student.sexe;
-    if (etatDossier && !["en_cours", "complet", "incomplet"].includes(etatDossier))
-      etatDossier = student.etatDossier;
+    /* =========================
+       PROMOTION
+    ========================= */
+    const promotionIdNum = parseInt(promotionId, 10);
+    if (!promotionIdNum || promotionIdNum <= 0) {
+      return res.status(400).json({ message: "promotionId invalide" });
+    }
 
-    const promotionIdNum = Number(promotionId);
-    if (isNaN(promotionIdNum)) return res.status(400).json({ message: "promotionId invalide" });
+    const promotion = await Promotion.findByPk(promotionIdNum);
+    if (!promotion) {
+      return res.status(400).json({ message: "Promotion inexistante" });
+    }
 
-    const userIdValue = userId || null;
+    /* =========================
+       USER (OPTIONNEL)
+    ========================= */
+    const userIdValue = userId && userId !== "" ? userId : null;
 
+    if (userIdValue && userIdValue !== student.userId) {
+      const userExists = await User.findByPk(userIdValue);
+      if (!userExists) {
+        return res.status(400).json({ message: "Utilisateur inexistant" });
+      }
+
+      const existingLink = await Student.findOne({
+        where: { userId: userIdValue },
+      });
+      if (existingLink) {
+        return res.status(400).json({
+          message: "Cet utilisateur est déjà lié à un autre étudiant.",
+        });
+      }
+    }
+
+    /* =========================
+       DATE
+    ========================= */
     if (dateNaissance && isNaN(Date.parse(dateNaissance))) {
       return res.status(400).json({ message: "dateNaissance invalide" });
     }
 
-    if (userIdValue && userIdValue !== student.userId) {
-      const existingLink = await Student.findOne({ where: { userId: userIdValue } });
-      if (existingLink)
-        return res.status(400).json({ message: "Cet utilisateur est déjà lié à un autre étudiant." });
-    }
+    /* =========================
+       ENUMS
+    ========================= */
+    const sexeValide = ["M", "F", "Autre"].includes(sexe)
+      ? sexe
+      : student.sexe;
 
+    const etatDossierValide = ["en_cours", "complet", "incomplet"].includes(etatDossier)
+      ? etatDossier
+      : student.etatDossier;
+
+    /* =========================
+       UPDATE
+    ========================= */
     await student.update({
       nom,
       prenom,
       matricule,
-      sexe,
+      sexe: sexeValide,
       dateNaissance: dateNaissance ? new Date(dateNaissance) : null,
       lieuNaissance,
       grade,
-      etatDossier,
+      etatDossier: etatDossierValide,
       promotionId: promotionIdNum,
       userId: userIdValue,
       photoUrl: photoUrl || student.photoUrl,
@@ -233,18 +287,31 @@ exports.updateStudent = async (req, res) => {
 
     const updatedStudent = await Student.findByPk(student.id, {
       include: [
-        { model: Promotion, as: "promotion", include: [{ model: Filiere, as: "filiere" }] },
-        { model: User, as: "user", attributes: ["id", "username", "email", "telephone", "photoUrl"] },
+        {
+          model: Promotion,
+          as: "promotion",
+          include: [{ model: Filiere, as: "filiere" }],
+        },
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "username", "email", "telephone", "photoUrl"],
+        },
       ],
     });
 
-    res.status(200).json({ message: "Étudiant mis à jour", student: updatedStudent });
+    return res.status(200).json({
+      message: "Étudiant mis à jour avec succès",
+      student: updatedStudent,
+    });
   } catch (error) {
     console.error("❌ Erreur updateStudent:", error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+    return res.status(500).json({
+      message: "Erreur serveur",
+      error: error.message,
+    });
   }
 };
-
 
 /* ============================================================
    🔹 Supprimer un étudiant
@@ -380,4 +447,3 @@ exports.getModulesForStudent = async (req, res) => {
     });
   }
 };
-

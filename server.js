@@ -4,6 +4,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const db = require("./models");
 const path = require("path");
+const authRoutes = require("./routes/auth.routes");
 
 dotenv.config();
 
@@ -52,7 +53,6 @@ db.sequelize.sync({ alter: false })
 /* ================================
    ROUTES
 ================================ */
-app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/users", require("./routes/user.routes"));
 app.use("/api/roles", require("./routes/role.routes"));
 app.use("/api/students", require("./routes/student.routes"));
@@ -66,7 +66,7 @@ app.use("/api/dashboard", require("./routes/dashboard.routes"));
 app.use("/api/teachers", require("./routes/teacher.routes"));
 app.use("/api/schedules", require("./routes/schedule.routes"));
 app.use("/api/presence", require("./routes/presence.routes"));
-app.use("/api/dev", require("./routes/dev.routes"));
+app.use("/api/auth", authRoutes);
 
 /* ================================
    UPLOADS
