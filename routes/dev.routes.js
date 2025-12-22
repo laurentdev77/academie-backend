@@ -12,7 +12,7 @@ router.post("/create-admin", async (req, res) => {
       return res.json({ message: "Admin existe déjà" });
     }
 
-    const adminRole = await Role.findOne({ where: { name: "jeannette" } });
+    const adminRole = await Role.findOne({ where: { name: "admin" } });
     if (!adminRole) {
       return res.status(500).json({ message: "Role admin introuvable" });
     }
