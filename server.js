@@ -106,3 +106,12 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`⚡ Serveur lancé sur le port ${PORT}`);
 });
+
+const fs = require("fs");
+
+const uploadsPath = path.join(__dirname, "uploads", "photos");
+
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+  console.log("📁 uploads/photos créé");
+}
