@@ -2,9 +2,9 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const db = require("./models");
 const path = require("path");
 const fs = require("fs");
-const db = require("./models");
 const authRoutes = require("./routes/auth.routes");
 
 dotenv.config();
@@ -37,8 +37,6 @@ app.use(express.urlencoded({ extended: true }));
 ================================ */
 app.use((req, res, next) => {
   console.log(`[REQUEST] ${req.method} ${req.url}`);
-  console.log("Headers:", req.headers);
-  console.log("Body:", req.body);
   next();
 });
 
@@ -56,19 +54,28 @@ db.sequelize
   .catch((err) => console.error("❌ Sync DB error:", err));
 
 /* ================================
-   UPLOADS
-   - Création automatique du dossier
-   - Serve les fichiers statiques
+   UPLOADS (CRITIQUE — AVANT LES ROUTES)
 ================================ */
-const uploadsPath = path.join(__dirname, "uploads", "photos");
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
-  console.log("📁 uploads/photos créé automatiquement");
+const uploadsDir = path.join(__dirname, "uploads");
+const photosDir = path.join(uploadsDir, "photos");
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+  console.log("📁 uploads créé");
 }
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+if (!fs.existsSync(photosDir)) {
+  fs.mkdirSync(photosDir, { recursive: true });
+  console.log("📁 uploads/photos créé");
+}
+
+// 🔥 SERVIR LES FICHIERS STATIQUES
+// 🔥 SERVIR LES UPLOADS (DOUBLE CHEMIN)
+app.use("/uploads", express.static(uploadsDir));
+app.use("/api/uploads", express.static(uploadsDir));
 
 /* ================================
-   ROUTES
+   ROUTES API
 ================================ */
 app.use("/api/users", require("./routes/user.routes"));
 app.use("/api/roles", require("./routes/role.routes"));
@@ -96,7 +103,7 @@ app.get("/", (req, res) => {
 /* ================================
    404
 ================================ */
-app.use((req, res, next) => {
+app.use((req, res) => {
   res.status(404).json({ message: "Route non trouvée" });
 });
 
