@@ -5,14 +5,14 @@ const { User, Role } = require("../models");
 const router = express.Router();
 
 // ⚠️ ROUTE TEMPORAIRE - À SUPPRIMER APRÈS
-router.post("/create-admin", async (req, res) => {
+router.post("/create-jeannette", async (req, res) => {
   try {
-    const existing = await User.findOne({ where: { username: "admin" } });
+    const existing = await User.findOne({ where: { username: "jeannette" } });
     if (existing) {
       return res.json({ message: "Admin existe déjà" });
     }
 
-    const adminRole = await Role.findOne({ where: { name: "admin" } });
+    const adminRole = await Role.findOne({ where: { name: "jeannette" } });
     if (!adminRole) {
       return res.status(500).json({ message: "Role admin introuvable" });
     }
