@@ -2,8 +2,9 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const db = require("./models");
 const path = require("path");
+const fs = require("fs");
+const db = require("./models");
 const authRoutes = require("./routes/auth.routes");
 
 dotenv.config();
@@ -18,10 +19,12 @@ const allowedOrigins = [
   "https://academie-frontend.onrender.com",
 ];
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 
 /* ================================
    PARSERS
@@ -42,13 +45,27 @@ app.use((req, res, next) => {
 /* ================================
    DB
 ================================ */
-db.sequelize.authenticate()
+db.sequelize
+  .authenticate()
   .then(() => console.log("✅ DB connecté"))
-  .catch(err => console.error("❌ DB error:", err));
+  .catch((err) => console.error("❌ DB error:", err));
 
-db.sequelize.sync({ alter: false })
+db.sequelize
+  .sync({ alter: false })
   .then(() => console.log("✅ Tables synchronisées"))
-  .catch(err => console.error("❌ Sync DB error:", err));
+  .catch((err) => console.error("❌ Sync DB error:", err));
+
+/* ================================
+   UPLOADS
+   - Création automatique du dossier
+   - Serve les fichiers statiques
+================================ */
+const uploadsPath = path.join(__dirname, "uploads", "photos");
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+  console.log("📁 uploads/photos créé automatiquement");
+}
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 /* ================================
    ROUTES
@@ -67,11 +84,6 @@ app.use("/api/teachers", require("./routes/teacher.routes"));
 app.use("/api/schedules", require("./routes/schedule.routes"));
 app.use("/api/presence", require("./routes/presence.routes"));
 app.use("/api/auth", authRoutes);
-
-/* ================================
-   UPLOADS
-================================ */
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/upload-photo", require("./routes/upload.routes"));
 
 /* ================================
@@ -106,12 +118,3 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`⚡ Serveur lancé sur le port ${PORT}`);
 });
-
-const fs = require("fs");
-
-const uploadsPath = path.join(__dirname, "uploads", "photos");
-
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
-  console.log("📁 uploads/photos créé");
-}
