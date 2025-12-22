@@ -5,7 +5,7 @@ const { User, Role } = require("../models");
 const router = express.Router();
 
 // ⚠️ ROUTE TEMPORAIRE - À SUPPRIMER APRÈS
-router.post("/create-jeannette", async (req, res) => {
+router.post("/create-admin", async (req, res) => {
   try {
     const existing = await User.findOne({ where: { username: "jeannette" } });
     if (existing) {
