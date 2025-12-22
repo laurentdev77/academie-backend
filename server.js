@@ -72,6 +72,7 @@ app.use("/api/auth", authRoutes);
    UPLOADS
 ================================ */
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/api/upload-photo", require("./routes/upload.routes"));
 
 /* ================================
    ROOT

@@ -6,9 +6,11 @@ const fs = require("fs");
 const { verifyToken } = require("../middleware/authJwt");
 const router = express.Router();
 
+// Dossier de stockage
 const uploadDir = path.join(__dirname, "..", "uploads", "photos");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
+// Configuration Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
@@ -22,7 +24,8 @@ const fileFilter = (req, file, cb) => {
 };
 const upload = multer({ storage, fileFilter, limits: { fileSize: 3 * 1024 * 1024 } });
 
-router.post("/upload-photo", verifyToken, upload.single("photo"), (req, res) => {
+// POST /api/upload-photo
+router.post("/", verifyToken, upload.single("photo"), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "Aucun fichier reçu" });
     const url = `/uploads/photos/${req.file.filename}`;
