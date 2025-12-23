@@ -252,6 +252,13 @@ exports.updateTeacher = async (req, res) => {
   }
 };
 
+exports.updateTeacherPhoto = async (teacherId, photoUrl) => {
+  const teacher = await Teacher.findByPk(teacherId);
+  if (!teacher) throw new Error("Enseignant introuvable");
+  teacher.photoUrl = photoUrl;
+  await teacher.save();
+};
+
 /* ============================================================
    🔹 Supprimer un enseignant
    ============================================================ */
