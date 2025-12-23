@@ -28,4 +28,7 @@ router.get("/stats/seance/:seanceId", isTeacher, presenceController.getPresenceS
 /* STUDENT */
 router.get("/me", isStudent, presenceController.getPresenceForStudent);
 
+// Alias pour compatibilité frontend
+router.get("/student/my", isStudent, presenceController.getPresenceForStudent);
+
 module.exports = router;
