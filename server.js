@@ -58,6 +58,7 @@ db.sequelize
 ================================ */
 const uploadsDir = path.join(__dirname, "uploads");
 const photosDir = path.join(uploadsDir, "photos");
+const resourcesDir = path.join(uploadsDir, "resources");
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
@@ -69,6 +70,10 @@ if (!fs.existsSync(photosDir)) {
   console.log("📁 uploads/photos créé");
 }
 
+if (!fs.existsSync(resourcesDir)) {
+  fs.mkdirSync(resourcesDir, { recursive: true });
+  console.log("📁 uploads/resources créé");
+}
 // 🔥 SERVIR LES FICHIERS STATIQUES
 // 🔥 SERVIR LES UPLOADS (DOUBLE CHEMIN)
 app.use("/uploads", express.static(uploadsDir));
@@ -92,6 +97,7 @@ app.use("/api/schedules", require("./routes/schedule.routes"));
 app.use("/api/presence", require("./routes/presence.routes"));
 app.use("/api/auth", authRoutes);
 app.use("/api/upload-photo", require("./routes/upload.routes"));
+app.use("/uploads/resources", express.static(resourcesDir));
 
 /* ================================
    ROOT
