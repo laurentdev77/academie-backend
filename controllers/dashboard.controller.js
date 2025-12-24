@@ -54,7 +54,7 @@ exports.getStats = async (req, res) => {
 
       if (teacher) {
         stats.modules = await Module.count({
-          where: { userId: user.id },
+          where: { teacherId: teacher.id },
         });
       }
     }
