@@ -264,9 +264,27 @@ exports.updateTeacherPhoto = async (teacherId, photoUrl) => {
    ============================================================ */
 exports.deleteTeacher = async (req, res) => {
   try {
-    const teacher = await Teacher.findByPk(req.params.id);
+    const teacher = await Teacher.findByPk(req.params.id, {
+      include: [
+        { model: Module, as: "modules" },
+        { model: User, as: "user" },
+      ],
+    });
+
     if (!teacher)
       return res.status(404).json({ message: "Enseignant introuvable" });
+
+    // Vérifier s'il y a des modules liés
+    if (teacher.modules && teacher.modules.length > 0) {
+      return res.status(400).json({
+        message: "Impossible de supprimer : cet enseignant a des modules associés.",
+      });
+    }
+
+    // Dissocier le user lié (optionnel)
+    if (teacher.userId) {
+      await User.update({ roleId: null }, { where: { id: teacher.userId } });
+    }
 
     await teacher.destroy();
 
