@@ -2,7 +2,7 @@ const db = require("../models");
 
 exports.getStats = async (req, res) => {
   try {
-    const { User, Student, Teacher, Module, Note, Bulletin } = db;
+    const { User, Student, Teacher, Module, Note} = db;
 
     const user = req.user;
     const role = user?.role?.name;
@@ -41,19 +41,13 @@ exports.getStats = async (req, res) => {
         stats.notes = await Note.count({
           where: { studentId: student.id },
         });
-
-        stats.bulletins = Bulletin
-          ? await Bulletin.count({
-              where: { studentId: student.id },
-            })
-          : 0;
       }
     }
 
     /* ================================
        👨‍🏫 STATS ENSEIGNANT (OPTIONNEL)
     ================================ */
-    if (role === "teacher" || role === "enseignant") {
+    if (role === "teacher") {
       const teacher = await Teacher.findOne({
         where: { userId: user.id },
       });
@@ -70,7 +64,6 @@ exports.getStats = async (req, res) => {
     ================================ */
     if (role === "admin") {
       stats.users = await User.count();
-      stats.bulletins = Bulletin ? await Bulletin.count() : 0;
     }
 
     return res.status(200).json({
