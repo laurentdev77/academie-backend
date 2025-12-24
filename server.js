@@ -54,7 +54,7 @@ db.sequelize
   .catch((err) => console.error("❌ Sync DB error:", err));
 
 /* ================================
-   UPLOADS (CRITIQUE — AVANT LES ROUTES)
+   UPLOADS (AVANT LES ROUTES)
 ================================ */
 const uploadsDir = path.join(__dirname, "uploads");
 const photosDir = path.join(uploadsDir, "photos");
@@ -74,10 +74,13 @@ if (!fs.existsSync(resourcesDir)) {
   fs.mkdirSync(resourcesDir, { recursive: true });
   console.log("📁 uploads/resources créé");
 }
-// 🔥 SERVIR LES FICHIERS STATIQUES
-// 🔥 SERVIR LES UPLOADS (DOUBLE CHEMIN)
+
+/* ================================
+   SERVIR LES UPLOADS
+================================ */
 app.use("/uploads", express.static(uploadsDir));
 app.use("/api/uploads", express.static(uploadsDir));
+app.use("/uploads/resources", express.static(resourcesDir));
 
 /* ================================
    ROUTES API
@@ -97,20 +100,31 @@ app.use("/api/schedules", require("./routes/schedule.routes"));
 app.use("/api/presence", require("./routes/presence.routes"));
 app.use("/api/auth", authRoutes);
 app.use("/api/upload-photo", require("./routes/upload.routes"));
-app.use("/uploads/resources", express.static(resourcesDir));
 
 /* ================================
-   ROOT
+   ROOT API
 ================================ */
-app.get("/", (req, res) => {
+app.get("/api", (req, res) => {
   res.send("Backend académique opérationnel 🚀");
 });
 
 /* ================================
-   404
+   SERVIR LE FRONTEND (REACT BUILD)
 ================================ */
-app.use((req, res) => {
-  res.status(404).json({ message: "Route non trouvée" });
+app.use(express.static(path.join(__dirname, "public")));
+
+/* ================================
+   FALLBACK REACT ROUTER (CRITIQUE)
+================================ */
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+/* ================================
+   404 API UNIQUEMENT
+================================ */
+app.use("/api", (req, res) => {
+  res.status(404).json({ message: "Route API non trouvée" });
 });
 
 /* ================================
