@@ -6,6 +6,7 @@ const db = require("./models");
 const path = require("path");
 const fs = require("fs");
 const authRoutes = require("./routes/auth.routes");
+const adminRoutes = require("./routes/admin");
 
 dotenv.config();
 
@@ -100,7 +101,7 @@ app.use("/api/schedules", require("./routes/schedule.routes"));
 app.use("/api/presence", require("./routes/presence.routes"));
 app.use("/api/auth", authRoutes);
 app.use("/api/upload-photo", require("./routes/upload.routes"));
-
+app.use("/api", adminRoutes);
 /* ================================
    ROOT API
 ================================ */
