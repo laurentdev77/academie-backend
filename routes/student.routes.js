@@ -56,6 +56,7 @@ router.get("/", authJwt.isAdminFamily, studentController.getAllStudents);
 router.post("/", authJwt.isAdminFamily, studentController.createStudent);
 router.put("/:id", authJwt.isAdminFamily, studentController.updateStudent);
 router.delete("/:id", authJwt.isAdminFamily, studentController.deleteStudent);
+router.get("/by-module/:moduleId", auth, studentController.getStudentsByModule);
 
 /* ============================================================
    👨‍🏫 Étudiants par promotion
