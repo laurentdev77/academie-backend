@@ -1,15 +1,15 @@
-// server.js
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const db = require("./models");
 const path = require("path");
 const fs = require("fs");
+
+// Import des routes
 const authRoutes = require("./routes/auth.routes");
 const adminRoutes = require("./routes/admin");
 
 dotenv.config();
-
 const app = express();
 
 /* ================================
@@ -65,12 +65,10 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
   console.log("📁 uploads créé");
 }
-
 if (!fs.existsSync(photosDir)) {
   fs.mkdirSync(photosDir, { recursive: true });
   console.log("📁 uploads/photos créé");
 }
-
 if (!fs.existsSync(resourcesDir)) {
   fs.mkdirSync(resourcesDir, { recursive: true });
   console.log("📁 uploads/resources créé");
@@ -101,7 +99,10 @@ app.use("/api/schedules", require("./routes/schedule.routes"));
 app.use("/api/presence", require("./routes/presence.routes"));
 app.use("/api/auth", authRoutes);
 app.use("/api/upload-photo", require("./routes/upload.routes"));
-app.use("/api", adminRoutes);
+
+// ⚠️ Route admin temporaire
+app.use("/api/admin", adminRoutes);
+
 /* ================================
    ROOT API
 ================================ */
@@ -115,16 +116,16 @@ app.get("/api", (req, res) => {
 app.use(express.static(path.join(__dirname, "public")));
 
 /* ================================
-   FALLBACK REACT ROUTER (CRITIQUE)
+   FALLBACK REACT ROUTER
 ================================ */
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   res.json({ message: "API Academie Militaire en ligne 🚀" });
 });
 
 /* ================================
    404 API UNIQUEMENT
 ================================ */
-app.use("/api", (req, res) => {
+app.use("/api/*", (req, res) => {
   res.status(404).json({ message: "Route API non trouvée" });
 });
 
