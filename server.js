@@ -117,8 +117,8 @@ app.use(express.static(path.join(__dirname, "public")));
 /* ================================
    FALLBACK REACT ROUTER (CRITIQUE)
 ================================ */
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+app.get('/', (req, res) => {
+  res.json({ message: "API Academie Militaire en ligne 🚀" });
 });
 
 /* ================================
