@@ -111,12 +111,7 @@ app.get("/api", (req, res) => {
 });
 
 /* ================================
-   SERVIR LE FRONTEND (REACT BUILD)
-================================ */
-app.use(express.static(path.join(__dirname, "public")));
-
-/* ================================
-   FALLBACK REACT ROUTER
+   ROOT SIMPLE (PAS DE FRONTEND ICI)
 ================================ */
 app.get("/", (req, res) => {
   res.json({ message: "API Academie Militaire en ligne 🚀" });
