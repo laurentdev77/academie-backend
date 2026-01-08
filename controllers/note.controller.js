@@ -4,15 +4,13 @@ const Student = db.Student;
 const Module = db.Module;
 const Promotion = db.Promotion;
 const Filiere = db.Filiere;
-const Teacher = db.Teacher; // Assure-toi que ce modèle existe
+const Teacher = db.Teacher;
 const { Op } = db.Sequelize;
 const { createAudit } = require("../utils/audit");
 const csv = require("csv-parser");
 const fs = require("fs");
 
-/* ============================================================
-   🧠 UTILITAIRE : Mapper une note pour structurer la réponse
-   ============================================================ */
+// Utilitaire pour mapper une note
 function mapNote(n) {
   return {
     id: n.id,
@@ -41,19 +39,18 @@ function mapNote(n) {
           credits: n.module.credits,
           semester: n.module.semester,
           promotionId: n.module.promotionId,
-          teacherId: n.module.teacherId ?? null,
+          teacherId: n.module.teacherId,
         }
       : null,
   };
 }
 
 /* ============================================================
-   ✅ GET ALL NOTES — Admin uniquement
-   ============================================================ */
+   ✅ GET ALL NOTES — Admin/Secretary/DE
+============================================================ */
 exports.getAllNotes = async (req, res) => {
   try {
     const { search, moduleId, promotionId, session, semester } = req.query;
-
     const where = {};
     if (session && session !== "all") where.session = session;
     if (semester && !isNaN(Number(semester))) where.semester = Number(semester);
@@ -64,18 +61,10 @@ exports.getAllNotes = async (req, res) => {
         model: Student,
         as: "student",
         include: [
-          {
-            model: Promotion,
-            as: "promotion",
-            include: [{ model: Filiere, as: "filiere" }],
-          },
+          { model: Promotion, as: "promotion", include: [{ model: Filiere, as: "filiere" }] },
         ],
       },
-      {
-        model: Module,
-        as: "module",
-        attributes: ["id", "title", "code", "credits", "semester", "promotionId", "teacherId"],
-      },
+      { model: Module, as: "module" },
     ];
 
     if (search) {
@@ -87,16 +76,9 @@ exports.getAllNotes = async (req, res) => {
       ];
     }
 
-    if (promotionId && promotionId !== "all") {
-      include[0].where = { promotionId };
-    }
+    if (promotionId && promotionId !== "all") include[0].where = { promotionId };
 
-    const notes = await Note.findAll({
-      where,
-      include,
-      order: [["createdAt", "DESC"]],
-    });
-
+    const notes = await Note.findAll({ where, include, order: [["createdAt", "DESC"]] });
     res.json({ message: "Liste complète des notes", data: notes.map(mapNote) });
   } catch (err) {
     console.error("getAllNotes error:", err);
@@ -105,37 +87,16 @@ exports.getAllNotes = async (req, res) => {
 };
 
 /* ============================================================
-   ✅ GET NOTE BY ID — Tous rôles
-   ============================================================ */
+   ✅ GET NOTE BY ID — Tous rôles (selon permissions)
+============================================================ */
 exports.getNoteById = async (req, res) => {
   try {
-    const note = await Note.findByPk(req.params.id, {
-      include: [
-        {
-          model: Student,
-          as: "student",
-          include: [
-            {
-              model: Promotion,
-              as: "promotion",
-              include: [{ model: Filiere, as: "filiere" }],
-            },
-          ],
-        },
-        {
-          model: Module,
-          as: "module",
-          attributes: ["id", "title", "code", "credits", "semester", "promotionId", "teacherId"],
-        },
-      ],
-    });
-
+    const note = await Note.findByPk(req.params.id, { include: [{ model: Student, as: "student" }, { model: Module, as: "module" }] });
     if (!note) return res.status(404).json({ message: "Note introuvable" });
 
-    // Si teacher, vérifier l'appartenance au module
-    if (req.user.role.name === "teacher" && note.module?.teacherId !== req.user.id) {
-      return res.status(403).json({ message: "Accès refusé : ce module ne vous appartient pas." });
-    }
+    // Vérification pour teacher
+    if (req.user.role.name === "teacher" && note.module?.teacherId !== req.user.id)
+      return res.status(403).json({ message: "Accès refusé à cette note." });
 
     res.json({ message: "Note trouvée", data: mapNote(note) });
   } catch (err) {
@@ -145,51 +106,19 @@ exports.getNoteById = async (req, res) => {
 };
 
 /* ============================================================
-   ✅ GET NOTES BY STUDENT
-   ============================================================ */
-exports.getNotesByStudent = async (req, res) => {
-  try {
-    const studentId = req.params.studentId;
-
-    const notes = await Note.findAll({
-      where: { studentId },
-      include: [
-        { model: Module, as: "module", attributes: ["id", "title", "code", "credits", "semester", "promotionId", "teacherId"] },
-      ],
-      order: [["createdAt", "DESC"]],
-    });
-
-    res.json({ message: "Notes de l’étudiant", data: notes.map(mapNote) });
-  } catch (err) {
-    console.error("getNotesByStudent error:", err);
-    res.status(500).json({ message: "Erreur serveur", error: err.message });
-  }
-};
-
-/* ============================================================
-   ✅ GET NOTES BY MODULE
-   ============================================================ */
+   ✅ GET NOTES BY MODULE — Teacher ou Admin
+============================================================ */
 exports.getNotesByModule = async (req, res) => {
   try {
     const { moduleId } = req.params;
-
     const module = await Module.findByPk(moduleId);
-    if (!module) return res.status(404).json({ message: "Module introuvable." });
+    if (!module) return res.status(404).json({ message: "Module introuvable" });
 
-    // Vérifier teacher ownership
-    if (req.user.role.name === "teacher" && module.teacherId !== req.user.id) {
-      return res.status(403).json({ message: "Accès refusé : ce module ne vous appartient pas." });
-    }
+    // Teacher permission
+    if (req.user.role.name === "teacher" && module.teacherId !== req.user.id)
+      return res.status(403).json({ message: "Accès refusé à ce module." });
 
-    const notes = await Note.findAll({
-      where: { moduleId },
-      include: [
-        { model: Student, as: "student", attributes: ["id", "nom", "prenom", "matricule", "promotionId"] },
-        { model: Module, as: "module", attributes: ["id", "title", "code", "credits", "semester", "promotionId", "teacherId"] },
-      ],
-      order: [["createdAt", "DESC"]],
-    });
-
+    const notes = await Note.findAll({ where: { moduleId }, include: [{ model: Student, as: "student" }, { model: Module, as: "module" }] });
     res.json({ message: "Notes du module", data: notes.map(mapNote) });
   } catch (err) {
     console.error("getNotesByModule error:", err);
@@ -198,71 +127,16 @@ exports.getNotesByModule = async (req, res) => {
 };
 
 /* ============================================================
-   ✅ GET MY NOTES — Étudiant
-   ============================================================ */
-exports.getMyNotes = async (req, res) => {
-  try {
-    const studentId = req.studentId || req.user?.id;
-    if (!studentId) return res.status(401).json({ message: "Identifiant étudiant non trouvé." });
-
-    const notes = await Note.findAll({
-      where: { studentId },
-      include: [
-        { model: Module, as: "module" },
-        { model: Student, as: "student" },
-      ],
-      order: [["createdAt", "ASC"]],
-    });
-
-    res.json({ message: "Notes chargées avec succès.", data: notes.map(mapNote) });
-  } catch (err) {
-    console.error("getMyNotes error:", err);
-    res.status(500).json({ message: "Erreur serveur", error: err.message });
-  }
-};
-
-/* ============================================================
-   ✅ CREATE NOTE
-   ============================================================ */
+   ✅ CREATE NOTE — Admin seulement
+============================================================ */
 exports.createNote = async (req, res) => {
   try {
     const { studentId, moduleId, ce, fe, session, semester, appreciation } = req.body;
+    if (!studentId || !moduleId) return res.status(400).json({ message: "Étudiant et module requis" });
 
-    if (!studentId || !moduleId)
-      return res.status(400).json({ message: "Étudiant et module requis" });
-
-    const ceNum = parseFloat(ce) || 0;
-    const feNum = parseFloat(fe) || 0;
-    const score = Number((ceNum * 0.4 + feNum * 0.6).toFixed(2));
-
-    const note = await Note.create({
-      studentId,
-      moduleId,
-      ce: ceNum,
-      fe: feNum,
-      score,
-      session: session || "Normale",
-      semester: semester || 1,
-      appreciation: appreciation || "",
-    });
-
-    await createAudit({
-      userId: req.userId,
-      actionType: "CREATE_NOTE",
-      targetType: "Note",
-      targetId: note.id,
-      payload: { studentId, moduleId, score },
-      ip: req.ip,
-    });
-
-    const created = await Note.findByPk(note.id, {
-      include: [
-        { model: Student, as: "student" },
-        { model: Module, as: "module" },
-      ],
-    });
-
-    res.status(201).json({ message: "Note créée avec succès", data: mapNote(created) });
+    const score = Number(((parseFloat(ce) || 0) * 0.4 + (parseFloat(fe) || 0) * 0.6).toFixed(2));
+    const note = await Note.create({ studentId, moduleId, ce, fe, score, session, semester, appreciation });
+    res.status(201).json({ message: "Note créée", data: mapNote(note) });
   } catch (err) {
     console.error("createNote error:", err);
     res.status(500).json({ message: "Erreur serveur", error: err.message });
@@ -270,45 +144,17 @@ exports.createNote = async (req, res) => {
 };
 
 /* ============================================================
-   ✅ UPDATE NOTE
-   ============================================================ */
+   ✅ UPDATE NOTE — Admin seulement
+============================================================ */
 exports.updateNote = async (req, res) => {
   try {
     const note = await Note.findByPk(req.params.id);
     if (!note) return res.status(404).json({ message: "Note introuvable" });
 
     const { ce, fe, session, semester, appreciation } = req.body;
-
-    const ceNum = parseFloat(ce) || 0;
-    const feNum = parseFloat(fe) || 0;
-    const score = Number((ceNum * 0.4 + feNum * 0.6).toFixed(2));
-
-    await note.update({
-      ce: ceNum,
-      fe: feNum,
-      score,
-      session: session || note.session,
-      semester: semester || note.semester,
-      appreciation: appreciation ?? note.appreciation,
-    });
-
-    await createAudit({
-      userId: req.userId,
-      actionType: "UPDATE_NOTE",
-      targetType: "Note",
-      targetId: note.id,
-      payload: { ce: ceNum, fe: feNum, score },
-      ip: req.ip,
-    });
-
-    const updated = await Note.findByPk(note.id, {
-      include: [
-        { model: Student, as: "student" },
-        { model: Module, as: "module" },
-      ],
-    });
-
-    res.json({ message: "Note mise à jour", data: mapNote(updated) });
+    const score = Number(((parseFloat(ce) || 0) * 0.4 + (parseFloat(fe) || 0) * 0.6).toFixed(2));
+    await note.update({ ce, fe, score, session, semester, appreciation });
+    res.json({ message: "Note mise à jour", data: mapNote(note) });
   } catch (err) {
     console.error("updateNote error:", err);
     res.status(500).json({ message: "Erreur serveur", error: err.message });
@@ -316,24 +162,13 @@ exports.updateNote = async (req, res) => {
 };
 
 /* ============================================================
-   ✅ DELETE NOTE
-   ============================================================ */
+   ✅ DELETE NOTE — Admin seulement
+============================================================ */
 exports.deleteNote = async (req, res) => {
   try {
     const note = await Note.findByPk(req.params.id);
     if (!note) return res.status(404).json({ message: "Note introuvable" });
-
     await note.destroy();
-
-    await createAudit({
-      userId: req.userId,
-      actionType: "DELETE_NOTE",
-      targetType: "Note",
-      targetId: note.id,
-      payload: {},
-      ip: req.ip,
-    });
-
     res.json({ message: "Note supprimée" });
   } catch (err) {
     console.error("deleteNote error:", err);
@@ -342,143 +177,58 @@ exports.deleteNote = async (req, res) => {
 };
 
 /* ============================================================
-   ✅ IMPORT CSV
-   ============================================================ */
-exports.importNotesFromCSV = async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ message: "Aucun fichier fourni" });
-
-    const results = [];
-    fs.createReadStream(req.file.path)
-      .pipe(csv())
-      .on("data", (row) => results.push(row))
-      .on("end", async () => {
-        for (const row of results) {
-          const ceNum = parseFloat(row.ce) || 0;
-          const feNum = parseFloat(row.fe) || 0;
-          const score = Number((ceNum * 0.4 + feNum * 0.6).toFixed(2));
-
-          await Note.create({
-            studentId: row.studentId,
-            moduleId: row.moduleId,
-            ce: ceNum,
-            fe: feNum,
-            score,
-            session: row.session || "Normale",
-            semester: row.semester || 1,
-            appreciation: row.appreciation || "",
-          });
-        }
-        res.json({ message: "Importation terminée", count: results.length });
-      });
-  } catch (err) {
-    console.error("importNotesFromCSV error:", err);
-    res.status(500).json({ message: "Erreur serveur", error: err.message });
-  }
-};
-
-/* ============================================================
-   🧑‍🏫 TEACHER — Ajouter une note dans un module qu'il possède
-   ============================================================ */
+   ✅ TEACHER — Ajouter / Modifier / Supprimer ses notes
+============================================================ */
 exports.addNoteForModule = async (req, res) => {
   try {
     const teacherId = req.user.id;
     const { moduleId } = req.params;
-    const { studentId, ce, fe, score, appreciation, session, semester } = req.body;
-
     const module = await Module.findByPk(moduleId);
-    if (!module) return res.status(404).json({ message: "Module introuvable." });
-    if (module.teacherId !== teacherId)
-      return res.status(403).json({ message: "Vous ne pouvez modifier que vos propres modules." });
+    if (!module) return res.status(404).json({ message: "Module introuvable" });
+    if (module.teacherId !== teacherId) return res.status(403).json({ message: "Module non autorisé" });
 
-    const ceNum = ce != null ? Number(ce) : 0;
-    const feNum = fe != null ? Number(fe) : 0;
-    const calcScore = score ?? Number((ceNum * 0.4 + feNum * 0.6).toFixed(2));
-
-    const note = await Note.create({
-      studentId,
-      moduleId,
-      ce: ceNum,
-      fe: feNum,
-      score: calcScore,
-      appreciation: appreciation ?? "",
-      session: session ?? "Normale",
-      semester: semester ?? module.semester ?? 1,
-    });
-
-    res.status(201).json({ message: "Note ajoutée avec succès.", data: mapNote(note) });
+    const { studentId, ce, fe, score, appreciation, session, semester } = req.body;
+    const note = await Note.create({ studentId, moduleId, ce, fe, score, appreciation, session, semester });
+    res.status(201).json({ message: "Note ajoutée", data: mapNote(note) });
   } catch (err) {
     console.error("addNoteForModule error:", err);
     res.status(500).json({ message: "Erreur serveur", error: err.message });
   }
 };
 
-/* ============================================================
-   🧑‍🏫 TEACHER — Mettre à jour une note d’un de ses modules
-   ============================================================ */
 exports.updateNoteForModule = async (req, res) => {
   try {
     const teacherId = req.user.id;
     const { moduleId, noteId } = req.params;
-    const { ce, fe, session, semester, appreciation } = req.body;
-
     const module = await Module.findByPk(moduleId);
-    if (!module) return res.status(404).json({ message: "Module introuvable." });
-    if (req.user.role.name === "teacher" && module.teacherId !== teacherId) {
-      return res.status(403).json({ message: "Accès refusé à ce module." });
-    }
+    if (!module) return res.status(404).json({ message: "Module introuvable" });
+    if (module.teacherId !== teacherId) return res.status(403).json({ message: "Module non autorisé" });
 
     const note = await Note.findByPk(noteId);
-    if (!note) return res.status(404).json({ message: "Note introuvable." });
+    if (!note) return res.status(404).json({ message: "Note introuvable" });
 
-    const ceNum = ce != null ? Number(ce) : note.ce;
-    const feNum = fe != null ? Number(fe) : note.fe;
-    const scoreNum = Number((ceNum * 0.4 + feNum * 0.6).toFixed(2));
-
-    await note.update({
-      ce: ceNum,
-      fe: feNum,
-      score: scoreNum,
-      session: session ?? note.session,
-      semester: semester ?? note.semester,
-      appreciation: appreciation ?? note.appreciation,
-    });
-
-    res.json({ message: "Note mise à jour avec succès.", data: mapNote(note) });
+    const { ce, fe, score, appreciation, session, semester } = req.body;
+    await note.update({ ce, fe, score, appreciation, session, semester });
+    res.json({ message: "Note mise à jour", data: mapNote(note) });
   } catch (err) {
     console.error("updateNoteForModule error:", err);
     res.status(500).json({ message: "Erreur serveur", error: err.message });
   }
 };
 
-/* ============================================================
-   🧑‍🏫 TEACHER — Supprimer une note d’un de ses modules
-   ============================================================ */
 exports.deleteNoteForModule = async (req, res) => {
   try {
+    const teacherId = req.user.id;
     const { moduleId, noteId } = req.params;
-
     const module = await Module.findByPk(moduleId);
-    if (!module) return res.status(404).json({ message: "Module introuvable." });
-    if (req.user.role.name === "teacher" && module.teacherId !== req.user.id) {
-      return res.status(403).json({ message: "Accès refusé à ce module." });
-    }
+    if (!module) return res.status(404).json({ message: "Module introuvable" });
+    if (module.teacherId !== teacherId) return res.status(403).json({ message: "Module non autorisé" });
 
     const note = await Note.findByPk(noteId);
-    if (!note) return res.status(404).json({ message: "Note introuvable." });
+    if (!note) return res.status(404).json({ message: "Note introuvable" });
 
     await note.destroy();
-
-    await createAudit({
-      userId: req.userId,
-      actionType: "DELETE_NOTE",
-      targetType: "Note",
-      targetId: note.id,
-      payload: {},
-      ip: req.ip,
-    });
-
-    res.json({ message: "Note supprimée avec succès." });
+    res.json({ message: "Note supprimée" });
   } catch (err) {
     console.error("deleteNoteForModule error:", err);
     res.status(500).json({ message: "Erreur serveur", error: err.message });
@@ -486,6 +236,15 @@ exports.deleteNoteForModule = async (req, res) => {
 };
 
 /* ============================================================
-   ✅ Alias pour compatibilité
-   ============================================================ */
-exports.listNotes = exports.getAllNotes;
+   ✅ GET MY NOTES — Étudiant
+============================================================ */
+exports.getMyNotes = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const notes = await Note.findAll({ where: { studentId }, include: [{ model: Module, as: "module" }] });
+    res.json({ message: "Mes notes", data: notes.map(mapNote) });
+  } catch (err) {
+    console.error("getMyNotes error:", err);
+    res.status(500).json({ message: "Erreur serveur", error: err.message });
+  }
+};
