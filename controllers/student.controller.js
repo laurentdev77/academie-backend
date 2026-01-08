@@ -12,16 +12,8 @@ exports.getAllStudents = async (req, res) => {
   try {
     const students = await Student.findAll({
       include: [
-        {
-          model: Promotion,
-          as: "promotion",
-          include: [{ model: Filiere, as: "filiere" }],
-        },
-        {
-          model: User,
-          as: "user",
-          attributes: ["id", "username", "email", "telephone", "photoUrl"],
-        },
+        { model: Promotion, as: "promotion", include: [{ model: Filiere, as: "filiere" }] },
+        { model: User, as: "user", attributes: ["id", "username", "email", "telephone", "photoUrl"] },
       ],
       order: [["nom", "ASC"]],
     });
@@ -364,22 +356,20 @@ exports.linkUserToStudent = async (req, res) => {
 exports.getStudentsByPromotion = async (req, res) => {
   try {
     const { promotionId } = req.params;
-    if (!promotionId) {
-      return res.status(400).json({ message: "ID de promotion manquant" });
-    }
+    if (!promotionId) return res.status(400).json({ message: "ID de promotion manquant" });
 
-    const students = await db.Student.findAll({
+    const students = await Student.findAll({
       where: { promotionId },
       include: [
-        { model: db.Promotion, as: "promotion" },
-        { model: db.User, as: "user", attributes: ["id", "email", "telephone"] },
+        { model: Promotion, as: "promotion" },
+        { model: User, as: "user", attributes: ["id", "email", "telephone"] },
       ],
       order: [["nom", "ASC"]],
     });
 
     res.json(students);
   } catch (error) {
-    console.error("Erreur getStudentsByPromotion:", error);
+    console.error("getStudentsByPromotion error:", error);
     res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
@@ -454,10 +444,12 @@ exports.getModulesForStudent = async (req, res) => {
 exports.getStudentsByModule = async (req, res) => {
   try {
     const { moduleId } = req.params;
-
     const module = await Module.findByPk(moduleId);
-    if (!module) {
-      return res.status(404).json({ message: "Module introuvable" });
+    if (!module) return res.status(404).json({ message: "Module introuvable" });
+
+    // Si teacher, vérifier qu'il enseigne ce module
+    if (req.teacherId && module.teacherId !== req.teacherId) {
+      return res.status(403).json({ message: "Vous n'enseignez pas ce module" });
     }
 
     const students = await Student.findAll({
@@ -466,7 +458,7 @@ exports.getStudentsByModule = async (req, res) => {
       order: [["nom", "ASC"]],
     });
 
-    return res.status(200).json(students);
+    res.status(200).json(students);
   } catch (error) {
     console.error("getStudentsByModule error:", error);
     res.status(500).json({ message: "Erreur serveur" });
