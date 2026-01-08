@@ -75,14 +75,13 @@ function isAdminFamily(req, res, next) {
 function isTeacher(req, res, next) {
   const role = req.user?.role?.name?.toLowerCase();
 
-  // Tous les rôles enseignants et admin family autorisés
-  const allowedRoles = ["teacher", "enseignant", "admin", "secretary", "de", "assistant"];
-  
-  if (allowedRoles.includes(role)) {
+  if (["teacher", "enseignant"].includes(role)) {
     return next();
   }
 
-  return res.status(403).json({ message: "Accès réservé aux enseignants" });
+  return res.status(403).json({
+    message: "Accès réservé aux enseignants",
+  });
 }
 
 // Nouveau : admin ou teacher
