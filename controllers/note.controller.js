@@ -240,11 +240,22 @@ exports.deleteNoteForModule = async (req, res) => {
 ============================================================ */
 exports.getMyNotes = async (req, res) => {
   try {
-    const studentId = req.user.id;
-    const notes = await Note.findAll({ where: { studentId }, include: [{ model: Module, as: "module" }] });
-    res.json({ message: "Mes notes", data: notes.map(mapNote) });
+    if (!req.teacherId) {
+      return res.status(403).json({ message: "Impossible de récupérer les notes pour cet utilisateur" });
+    }
+
+    const notes = await Note.findAll({
+      where: { teacherId: req.teacherId },
+      include: [
+        { model: Student, as: "student", include: [{ model: Promotion, as: "promotion" }] },
+        { model: Module, as: "module" }
+      ]
+    });
+
+    res.json({ data: notes });
   } catch (err) {
     console.error("getMyNotes error:", err);
-    res.status(500).json({ message: "Erreur serveur", error: err.message });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
+
