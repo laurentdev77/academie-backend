@@ -406,13 +406,14 @@ exports.getModulesForStudent = async (req, res) => {
 };
 
 /* ============================================================
-   🔹 Étudiants d’un module (via la promotion)
+   🔹 Étudiants d’un module (via la promotion) - version corrigée
 ============================================================ */
 exports.getStudentsByModule = async (req, res) => {
   try {
     const { moduleId } = req.params;
 
-    const module = await Module.findByPk(moduleId);
+    // Récupérer le module
+    const module = await db.Module.findByPk(moduleId);
     if (!module) {
       return res.status(404).json({ message: "Module introuvable" });
     }
@@ -425,23 +426,25 @@ exports.getStudentsByModule = async (req, res) => {
     }
 
     if (["teacher", "enseignant"].includes(role)) {
-      // Vérifier si l'enseignant est lié au module
-      if (!req.teacherId) {
-        return res.status(403).json({ message: "Profil enseignant non lié" });
-      }
+      // Si module.teacherId correspond au User.id de l'enseignant
+      // ou au Teacher.id stocké dans req.teacherId, ça passe
+      const teacherIdMatches =
+        String(module.teacherId) === String(req.teacherId) ||
+        String(module.teacherId) === String(req.userId);
 
-      if (String(module.teacherId) !== String(req.teacherId)) {
+      if (!teacherIdMatches) {
+        console.log("Debug - module.teacherId:", module.teacherId, "req.teacherId:", req.teacherId, "req.userId:", req.userId);
         return res.status(403).json({ message: "Vous n'enseignez pas ce module" });
       }
     }
 
     // ✅ Admin / Secretary / DE passent sans restriction
-    const students = await Student.findAll({
+    const students = await db.Student.findAll({
       where: { promotionId: module.promotionId },
       attributes: ["id", "nom", "prenom", "matricule", "grade", "etatDossier"],
       include: [
         {
-          model: User,
+          model: db.User,
           as: "user",
           attributes: ["id", "username", "email", "telephone", "photoUrl"],
         },
