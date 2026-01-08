@@ -35,10 +35,15 @@ async function verifyToken(req, res, next) {
       role: user.role ? user.role.name : null,
     };
 
-    if (req.user.role === "teacher" || req.user.role === "enseignant") {
-      const teacher = await db.Teacher.findOne({ where: { userId: user.id } });
-      if (teacher) req.teacherId = teacher.id;
-    }
+    if (req.user?.role?.name === "teacher") {
+  if (!req.teacherId) {
+    return res.status(403).json({ message: "Profil enseignant introuvable" });
+  }
+
+  if (String(module.teacherId) !== String(req.teacherId)) {
+    return res.status(403).json({ message: "Vous n'enseignez pas ce module" });
+  }
+}
 
     next();
   } catch (error) {

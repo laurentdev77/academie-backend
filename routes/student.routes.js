@@ -34,6 +34,12 @@ router.delete("/:id", authJwt.isAdminFamily, studentController.deleteStudent);
 // Étudiants par module / promotion
 router.get("/by-module/:moduleId", authJwt.isAdminOrTeacher, studentController.getStudentsByModule);
 router.get("/by-promotion/:promotionId", authJwt.isAdminOrTeacher, studentController.getStudentsByPromotion);
+router.get(
+  "/by-module/:moduleId",
+  verifyToken,
+  isTeacher,
+  getStudentsByModule
+);
 
 // Liaison User ↔ Étudiant
 router.post("/link", authJwt.isAdminFamily, studentController.linkUserToStudent);
