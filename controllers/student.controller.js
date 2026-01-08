@@ -411,14 +411,25 @@ exports.getModulesForStudent = async (req, res) => {
 exports.getStudentsByModule = async (req, res) => {
   try {
     const { moduleId } = req.params;
+
     const module = await Module.findByPk(moduleId);
-    if (!module) return res.status(404).json({ message: "Module introuvable" });
+    if (!module) {
+      return res.status(404).json({ message: "Module introuvable" });
+    }
 
-    const role = req.user.role;
+    const role = req.user?.role?.name?.toLowerCase();
 
-    // 🔐 Si enseignant, vérifier qu'il enseigne bien ce module
-    if (role === "teacher") {
-      if (!req.teacherId) return res.status(403).json({ message: "Profil enseignant non lié" });
+    // 🔐 Vérification des permissions
+    if (role === "student") {
+      return res.status(403).json({ message: "Accès réservé à l’administration ou aux enseignants" });
+    }
+
+    if (["teacher", "enseignant"].includes(role)) {
+      // Vérifier si l'enseignant est lié au module
+      if (!req.teacherId) {
+        return res.status(403).json({ message: "Profil enseignant non lié" });
+      }
+
       if (String(module.teacherId) !== String(req.teacherId)) {
         return res.status(403).json({ message: "Vous n'enseignez pas ce module" });
       }
@@ -427,13 +438,20 @@ exports.getStudentsByModule = async (req, res) => {
     // ✅ Admin / Secretary / DE passent sans restriction
     const students = await Student.findAll({
       where: { promotionId: module.promotionId },
-      attributes: ["id", "nom", "prenom", "matricule"],
+      attributes: ["id", "nom", "prenom", "matricule", "grade", "etatDossier"],
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "username", "email", "telephone", "photoUrl"],
+        },
+      ],
       order: [["nom", "ASC"]],
     });
 
     return res.status(200).json(students);
   } catch (error) {
     console.error("getStudentsByModule error:", error);
-    return res.status(500).json({ message: "Erreur serveur" });
+    return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
