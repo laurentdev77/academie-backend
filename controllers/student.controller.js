@@ -445,46 +445,33 @@ exports.getStudentsByModule = async (req, res) => {
   try {
     const { moduleId } = req.params;
 
-    // 1️⃣ Vérifier le module
     const module = await Module.findByPk(moduleId);
     if (!module) {
       return res.status(404).json({ message: "Module introuvable" });
     }
 
-    /**
-     * 2️⃣ Sécurité rôle ENSEIGNANT
-     * - Si l'utilisateur est enseignant
-     * - Il doit être le responsable du module
-     */
     const role = req.user?.role?.name?.toLowerCase();
 
-    if (["teacher", "enseignant"].includes(role)) {
+    // 🔐 Si enseignant, vérifier qu'il enseigne bien ce module
+    if (role === "teacher" || role === "enseignant") {
       if (!req.teacherId) {
-        return res.status(403).json({
-          message: "Profil enseignant non lié à un compte",
-        });
+        return res.status(403).json({ message: "Profil enseignant non lié" });
       }
 
-      if (module.teacherId !== req.teacherId) {
-        return res.status(403).json({
-          message: "Vous n'enseignez pas ce module",
-        });
+      if (String(module.teacherId) !== String(req.teacherId)) {
+        return res.status(403).json({ message: "Vous n'enseignez pas ce module" });
       }
     }
 
-    /**
-     * 3️⃣ Récupération des étudiants
-     */
+    // ✅ Admin / Secretary / DE passent sans restriction
+
     const students = await Student.findAll({
       where: { promotionId: module.promotionId },
       attributes: ["id", "nom", "prenom", "matricule"],
       order: [["nom", "ASC"]],
     });
 
-    return res.status(200).json({
-      message: "Étudiants du module",
-      data: students,
-    });
+    return res.status(200).json(students);
   } catch (error) {
     console.error("getStudentsByModule error:", error);
     return res.status(500).json({ message: "Erreur serveur" });
