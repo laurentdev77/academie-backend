@@ -253,3 +253,80 @@ exports.getStudentNotes = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur" });
   }
 };
+
+/* ============================================================
+   🛡️ ADMIN / SECRETARY / DE — TOUTES LES NOTES
+============================================================ */
+exports.getAllNotes = async (req, res) => {
+  try {
+    const notes = await Note.findAll({
+      include: [
+        { model: Student, as: "student" },
+        { model: Module, as: "module" },
+      ],
+    });
+
+    res.json({ data: notes.map(mapNote) });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur serveur", error: err.message });
+  }
+};
+
+/* ============================================================
+   🛡️ ADMIN — CRÉER UNE NOTE
+============================================================ */
+exports.createNote = async (req, res) => {
+  try {
+    const { studentId, moduleId, ce, fe, appreciation, session, semester } = req.body;
+    const score = calculateScore(ce, fe);
+
+    const note = await Note.create({
+      studentId,
+      moduleId,
+      ce,
+      fe,
+      score,
+      appreciation,
+      session,
+      semester,
+    });
+
+    res.status(201).json({ message: "Note créée", data: mapNote(note) });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur serveur", error: err.message });
+  }
+};
+
+/* ============================================================
+   🛡️ ADMIN — MODIFIER UNE NOTE
+============================================================ */
+exports.updateNote = async (req, res) => {
+  try {
+    const note = await Note.findByPk(req.params.id);
+    if (!note) return res.status(404).json({ message: "Note introuvable" });
+
+    const { ce, fe, appreciation, session, semester } = req.body;
+    const score = calculateScore(ce, fe);
+
+    await note.update({ ce, fe, score, appreciation, session, semester });
+
+    res.json({ message: "Note mise à jour", data: mapNote(note) });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur serveur", error: err.message });
+  }
+};
+
+/* ============================================================
+   🛡️ ADMIN — SUPPRIMER UNE NOTE
+============================================================ */
+exports.deleteNote = async (req, res) => {
+  try {
+    const note = await Note.findByPk(req.params.id);
+    if (!note) return res.status(404).json({ message: "Note introuvable" });
+
+    await note.destroy();
+    res.json({ message: "Note supprimée" });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur serveur", error: err.message });
+  }
+};
