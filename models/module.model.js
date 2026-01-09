@@ -87,6 +87,12 @@ module.exports = (sequelize, DataTypes) => {
       as: "resources",
     });
 
+    Module.associate = (models) => {
+  Module.belongsTo(models.Teacher, { as: "teacher", foreignKey: "teacherId" });
+  Module.belongsTo(models.Promotion, { as: "promotion", foreignKey: "promotionId" });
+  Module.hasMany(models.Resource, { as: "resources", foreignKey: "moduleId" });
+};
+
     // ✅ Déplacés ici : SEANCE + PRESENCE
     Module.hasMany(models.Seance, {
       foreignKey: "moduleId",

@@ -46,6 +46,10 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: "CASCADE",
     });
 
+    Teacher.associate = (models) => {
+  Teacher.hasMany(models.Module, { as: "modules", foreignKey: "teacherId" });
+};
+
     // 🔸 Lien facultatif vers un utilisateur (compte)
     Teacher.belongsTo(models.User, {
       foreignKey: "userId",
