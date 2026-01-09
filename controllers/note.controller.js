@@ -228,15 +228,25 @@ exports.getMyNotes = async (req, res) => {
 
 exports.getStudentNotes = async (req, res) => {
   try {
+    if (req.user.role.name !== "student") {
+      return res.status(403).json({ message: "Accès refusé" });
+    }
+
     const studentId = req.user.id;
 
     const notes = await Note.findAll({
       where: { studentId },
-      include: [{ model: Module, as: "module" }],
+      include: [
+        {
+          model: Module,
+          as: "module",
+        },
+      ],
     });
 
-    res.json({ data: notes });
+    res.json({ data: notes.map(mapNote) });
   } catch (err) {
+    console.error("getStudentNotes error:", err);
     res.status(500).json({ message: "Erreur serveur" });
   }
 };
