@@ -39,12 +39,7 @@ router.put("/:id", authJwt.isAdminFamily, studentController.updateStudent);
 router.delete("/:id", authJwt.isAdminFamily, studentController.deleteStudent);
 
 // 🔹 Étudiants par module (Admin / Teacher)
-router.get(
-  "/by-module/:moduleId",
-  authJwt.isAdminOrTeacher,  // Vérifie rôle
-  canAccessModule,           // Vérifie si l'accès au module est autorisé
-  studentController.getStudentsByModule
-);
+router.get("/by-module/:id", authJwt.verifyToken, studentController.getStudentsByModule);
 
 // 🔹 Étudiants par promotion (Admin / Teacher)
 router.get(

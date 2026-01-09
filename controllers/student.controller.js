@@ -410,58 +410,26 @@ exports.getModulesForStudent = async (req, res) => {
 ============================================================ */
 exports.getStudentsByModule = async (req, res) => {
   try {
-    const { moduleId } = req.params;
-
-    // Récupérer le module avec son enseignant et sa promotion
-    const module = await db.Module.findByPk(moduleId, {
-      include: [
-        { model: db.Teacher, as: "teacher", attributes: ["id", "userId", "nom", "prenom"] },
-        { model: db.Promotion, as: "promotion", attributes: ["id", "nom"] }
-      ]
+    const moduleId = req.params.id;
+    const module = await Module.findByPk(moduleId, {
+      include: [{ model: Promotion, as: "promotion", include: [{ model: Filiere, as: "filiere" }] }]
     });
 
-    if (!module) {
-      return res.status(404).json({ message: "Module introuvable" });
+    if (!module) return res.status(404).json({ message: "Module introuvable" });
+
+    // Vérifier si le teacher est propriétaire du module
+    if (req.user.role.name === "teacher" && module.teacherId !== req.user.id) {
+      return res.status(403).json({ message: "Accès refusé" });
     }
 
-    const role = req.user?.role?.name?.toLowerCase();
-
-    // 🔐 Vérification des permissions
-    if (role === "student") {
-      return res.status(403).json({
-        message: "Accès réservé à l’administration ou aux enseignants"
-      });
-    }
-
-    // Si l'utilisateur est enseignant, vérifier qu'il enseigne ce module
-    if (["teacher", "enseignant"].includes(role)) {
-      if (!req.teacherId) {
-        return res.status(403).json({ message: "Profil enseignant non lié" });
-      }
-
-      if (!module.teacher || String(module.teacher.id) !== String(req.teacherId)) {
-        return res.status(403).json({ message: "Vous n'enseignez pas ce module" });
-      }
-    }
-
-    // ✅ Tous les autres rôles autorisés (admin, secretary, DE)
-    if (!module.promotion) {
-      return res.status(404).json({ message: "Promotion liée au module non trouvée" });
-    }
-
-    // Récupérer tous les étudiants de la promotion
-    const students = await db.Student.findAll({
-      where: { promotionId: module.promotion.id },
-      include: [
-        { model: db.User, as: "user", attributes: ["id", "username", "email", "telephone", "photoUrl"] }
-      ],
-      order: [["nom", "ASC"]]
+    const students = await Student.findAll({
+      where: { promotionId: module.promotionId },
+      include: [{ model: Promotion, as: "promotion", include: [{ model: Filiere, as: "filiere" }] }]
     });
 
-    return res.status(200).json(students);
-
-  } catch (error) {
-    console.error("getStudentsByModule error:", error);
-    return res.status(500).json({ message: "Erreur serveur", error: error.message });
+    res.json(Array.isArray(students) ? students : []);
+  } catch (err) {
+    console.error("getStudentsByModule error:", err);
+    res.status(500).json({ message: "Erreur serveur", error: err.message });
   }
 };
