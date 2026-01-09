@@ -226,6 +226,9 @@ exports.getMyNotes = async (req, res) => {
   }
 };
 
+// ============================================================
+// 🎓 ÉTUDIANT — voir SES notes uniquement
+// ============================================================
 exports.getStudentNotes = async (req, res) => {
   try {
     if (req.user.role.name !== "student") {
@@ -234,17 +237,17 @@ exports.getStudentNotes = async (req, res) => {
 
     const studentId = req.user.id;
 
-    const notes = await Note.findAll({
+    const notes = await db.Note.findAll({
       where: { studentId },
       include: [
         {
-          model: Module,
+          model: db.Module,
           as: "module",
         },
       ],
     });
 
-    res.json({ data: notes.map(mapNote) });
+    res.json({ data: notes });
   } catch (err) {
     console.error("getStudentNotes error:", err);
     res.status(500).json({ message: "Erreur serveur" });
