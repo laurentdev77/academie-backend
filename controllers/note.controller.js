@@ -235,15 +235,15 @@ exports.getStudentNotes = async (req, res) => {
       return res.status(403).json({ message: "Accès refusé" });
     }
 
-    const studentId = req.user.id;
+    // 1️⃣ Trouver l'étudiant lié au user connecté
+    const student = await db.Student.findOne({ where: { userId: req.user.id } });
+    if (!student) return res.status(404).json({ message: "Étudiant introuvable" });
 
+    // 2️⃣ Récupérer ses notes
     const notes = await db.Note.findAll({
-      where: { studentId },
+      where: { studentId: student.id },
       include: [
-        {
-          model: db.Module,
-          as: "module",
-        },
+        { model: db.Module, as: "module" },
       ],
     });
 
