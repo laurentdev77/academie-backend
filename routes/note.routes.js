@@ -1,24 +1,66 @@
 const express = require("express");
 const router = express.Router();
 const noteController = require("../controllers/note.controller");
-const { verifyToken, isTeacher, isStudent, isAdminFamily } = require("../middleware/authJwt");
+const {
+  verifyToken,
+  isTeacher,
+  isStudent,
+  isAdminFamily,
+} = require("../middleware/authJwt");
 
 router.use(verifyToken);
 
-// Étudiant
-router.get("/student/my", isStudent, noteController.getMyNotes);
+/* ============================================================
+   🎓 ÉTUDIANT — voir SES notes uniquement
+============================================================ */
+router.get(
+  "/student/my",
+  isStudent,
+  noteController.getStudentNotes // 👉 fonction dédiée
+);
 
-// Teacher
-router.get("/module/:moduleId", isTeacher, noteController.getNotesByModule);
-router.post("/module/:moduleId/add", isTeacher, noteController.addNoteForModule);
-router.put("/module/:moduleId/:noteId", isTeacher, noteController.updateNoteForModule);
-router.delete("/module/:moduleId/:noteId", isTeacher, noteController.deleteNoteForModule);
+/* ============================================================
+   👨‍🏫 TEACHER — gérer SES modules
+============================================================ */
+router.get(
+  "/module/:moduleId",
+  isTeacher,
+  noteController.getNotesByModule
+);
 
-// Admin / Secretary / DE
+router.post(
+  "/module/:moduleId",
+  isTeacher,
+  noteController.addNoteForModule
+);
+
+router.put(
+  "/module/:moduleId/:noteId",
+  isTeacher,
+  noteController.updateNoteForModule
+);
+
+router.delete(
+  "/module/:moduleId/:noteId",
+  isTeacher,
+  noteController.deleteNoteForModule
+);
+
+/* ============================================================
+   🏛️ ADMIN / DE / SECRÉTARIAT
+============================================================ */
 router.get("/", isAdminFamily, noteController.getAllNotes);
-router.get("/:id", isAdminFamily, noteController.getNoteById);
+
+router.get(
+  "/:id",
+  isAdminFamily,
+  noteController.getNoteById
+);
+
 router.post("/", isAdminFamily, noteController.createNote);
+
 router.put("/:id", isAdminFamily, noteController.updateNote);
+
 router.delete("/:id", isAdminFamily, noteController.deleteNote);
 
 module.exports = router;
