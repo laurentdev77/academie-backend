@@ -29,7 +29,7 @@ router.get(
 );
 
 router.post(
-  "/module/:moduleId",
+  "/module/:moduleId/add",
   isTeacher,
   noteController.addNoteForModule
 );
